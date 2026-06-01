@@ -1,0 +1,48 @@
+# SecureOps — Claude Working Context
+
+## Project summary
+
+SecureOps is a standalone PyQt6 desktop penetration-testing and security-audit application for Kali Linux. It orchestrates 9 open-source scanning tools (subfinder, dnsx, naabu, httpx, katana, nuclei, nmap, nikto, testssl.sh) through a single UI, assembles findings into a live report, and exports a professional PDF.
+
+**Owner:** Abhishek K  
+**PRD:** `PRD.md`  
+**Stack:** PyQt6, pyqtgraph, QThread workers, SQLite, ReportLab, PyInstaller → .deb / .AppImage  
+**Optional:** AI Advisor via Anthropic Claude SDK or Ollama (opt-in, OFF by default)
+
+## Build phases
+
+| # | Phase | Status |
+|---|-------|--------|
+| 1 | App skeleton — main window, dark theme, navigation, unified-view shell | Not started |
+| 2 | Scan engine — 8 threaded tool wrappers, chaining, SQLite persistence | Not started |
+| 3 | Live visuals — pipeline tracker, severity rings, attack-surface graph, streaming cards | Not started |
+| 4 | Final report + professional PDF export | Not started |
+| 5 | Continuous monitoring (SOC) and scheduling | Not started |
+| 6 | AI Advisor agent (opt-in, consent, redaction, local-LLM alt) | Not started |
+| 7 | Packaging — .deb and .AppImage, bundled tools | Not started |
+
+## Key constraints (never violate)
+
+- UI must never freeze — all scans on QThread
+- Single tool failure must never crash the app or stop the pipeline
+- Fully offline by default — nothing leaves the machine unless AI Advisor explicitly enabled
+- No exploitation features — detection, recon, and reporting only
+- AI Advisor is strictly defensive (no exploit suggestions), opt-in, with explicit consent notice
+
+## Deferred tasks ("let's do it later" log)
+
+<!-- When the user says "let's do it later", add an entry here with the task and the date -->
+
+---
+
+## "Let's do it later" instruction
+
+Whenever the user types **"let's do it later"**, immediately:
+1. Identify what we were actively working on or discussing.
+2. Append it to the **Deferred tasks** table above with today's date.
+3. Confirm in one sentence what was saved.
+
+Format for deferred entries:
+| Date | What was deferred | Context / notes |
+|------|-------------------|-----------------|
+| YYYY-MM-DD | Short description | Any relevant detail |

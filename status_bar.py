@@ -1,6 +1,6 @@
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel
-from tool_checker import is_critical_missing, ready_count, CRITICAL_TOOLS, TOOLS
+from tool_checker import is_critical_missing, ready_count, TOOLS
 
 
 class ToolStatusBar(QWidget):

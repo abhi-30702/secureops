@@ -132,3 +132,36 @@ def test_nmap_returns_finding_for_open_port(db):
     assert findings[0].title == "Open port 443/tcp (https)"
     assert "nginx" in findings[0].description
     assert len(db.query_findings_by_scan(scan_id)) == 1
+
+
+# ── nikto ─────────────────────────────────────────────────────────────────────
+
+def test_nikto_returns_finding_from_json(db, tmp_path):
+    from workers.tools import nikto
+    import json as _json
+
+    json_content = _json.dumps({
+        "host": "https://api.example.com",
+        "ip": "93.184.216.34",
+        "port": "443",
+        "vulnerabilities": [
+            {"id": "999986", "method": "GET", "url": "/", "msg": "X-Frame-Options header not present.", "references": "CWE-693"}
+        ]
+    })
+
+    class NiktoMockRunner:
+        def run_buffered(self, cmd, timeout=300):
+            output_flag = "-output"
+            if output_flag in cmd:
+                idx = cmd.index(output_flag)
+                path = cmd[idx + 1]
+                with open(path, "w") as f:
+                    f.write(json_content)
+            return ""
+
+    scan_id = db.insert_scan(Scan(id=None, client_id=None, target="example.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+    findings = nikto.run(["https://api.example.com"], NiktoMockRunner(), db, scan_id)
+
+    assert len(findings) == 1
+    assert findings[0].tool == "nikto"
+    assert "X-Frame-Options" in findings[0].title

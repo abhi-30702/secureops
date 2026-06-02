@@ -3,11 +3,13 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QComboBox, QTextEdit, QPushButton, QFormLayout, QFrame,
 )
+from db import DB
 
 
 class ClientOnboardingScreen(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, db: DB | None = None, parent=None):
         super().__init__(parent)
+        self._db = db
         self._company_name_input: QLineEdit | None = None
         self._domain_input: QLineEdit | None = None
         self._firewall_combo: QComboBox | None = None

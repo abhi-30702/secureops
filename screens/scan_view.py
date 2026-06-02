@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QFrame, QSplitter,
 )
+from db import DB
 
 
 def _placeholder_panel(text: str) -> QFrame:
@@ -19,8 +20,9 @@ def _placeholder_panel(text: str) -> QFrame:
 
 
 class ScanViewScreen(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, db: DB | None = None, parent=None):
         super().__init__(parent)
+        self._db = db
         self._target_input: QLineEdit | None = None
         self._start_btn: QPushButton | None = None
         self._pipeline_panel: QFrame | None = None

@@ -8,12 +8,14 @@ from screens.client_onboarding import ClientOnboardingScreen
 from screens.scan_view import ScanViewScreen
 from screens.report import ReportScreen
 from screens.settings import SettingsScreen
+from db import DB
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, tool_results: dict, parent=None):
+    def __init__(self, tool_results: dict, db: DB | None = None, parent=None):
         super().__init__(parent)
         self._tool_results = tool_results
+        self._db = db
         self._sidebar: Sidebar | None = None
         self._stack: QStackedWidget | None = None
         self._status_bar_widget: ToolStatusBar | None = None
@@ -38,10 +40,10 @@ class MainWindow(QMainWindow):
         self._stack = QStackedWidget()
 
         self._stack.addWidget(DashboardScreen(self._tool_results))        # 0
-        self._stack.addWidget(ClientOnboardingScreen())                    # 1
-        self._stack.addWidget(ScanViewScreen())                            # 2
+        self._stack.addWidget(ClientOnboardingScreen(db=self._db))        # 1
+        self._stack.addWidget(ScanViewScreen(db=self._db))                # 2
         self._stack.addWidget(ReportScreen())                              # 3
-        self._stack.addWidget(SettingsScreen(self._tool_results))          # 4
+        self._stack.addWidget(SettingsScreen(self._tool_results))         # 4
 
         row_layout.addWidget(self._sidebar)
         row_layout.addWidget(self._stack, stretch=1)

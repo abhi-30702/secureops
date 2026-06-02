@@ -1,0 +1,70 @@
+from models import Client, Scan, Host, Finding
+from db import DB
+
+
+def test_insert_and_query_client(db):
+    client = Client(id=None, name="Acme", domain="acme.com", firewall="pfSense", notes="", created_at="2024-01-01T00:00:00")
+    cid = db.insert_client(client)
+    assert isinstance(cid, int)
+    clients = db.query_clients()
+    assert len(clients) == 1
+    assert clients[0].name == "Acme"
+    assert clients[0].id == cid
+
+
+def test_insert_scan_nullable_client(db):
+    scan = Scan(id=None, client_id=None, target="acme.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None)
+    sid = db.insert_scan(scan)
+    assert isinstance(sid, int)
+
+
+def test_update_scan_status(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="acme.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+    db.update_scan_status(sid, "complete", "2024-01-01T01:00:00")
+    scans = db.query_scans_by_client(None)
+    assert scans[0].status == "complete"
+    assert scans[0].finished_at == "2024-01-01T01:00:00"
+
+
+def test_insert_and_query_host(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="acme.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+    host = Host(id=None, scan_id=sid, subdomain="api.acme.com", ip="1.2.3.4", port=443, protocol="tcp", service="https", url="https://api.acme.com", source_tool="httpx", created_at="2024-01-01T00:00:00")
+    hid = db.insert_host(host)
+    hosts = db.query_hosts_by_scan(sid)
+    assert len(hosts) == 1
+    assert hosts[0].subdomain == "api.acme.com"
+    assert hosts[0].id == hid
+
+
+def test_insert_and_query_finding(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="acme.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+    finding = Finding(id=None, scan_id=sid, host_id=None, tool="nuclei", severity="critical", title="CVE-2021-41773", description="Path traversal", raw_json="{}", created_at="2024-01-01T00:00:00")
+    fid = db.insert_finding(finding)
+    findings = db.query_findings_by_scan(sid)
+    assert len(findings) == 1
+    assert findings[0].severity == "critical"
+    assert findings[0].id == fid
+
+
+def test_host_nullable_fields(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="acme.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+    host = Host(id=None, scan_id=sid, subdomain="api.acme.com", ip=None, port=None, protocol=None, service=None, url=None, source_tool="subfinder", created_at="2024-01-01T00:00:00")
+    db.insert_host(host)
+    hosts = db.query_hosts_by_scan(sid)
+    assert hosts[0].ip is None
+
+
+def test_finding_nullable_host_id(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="acme.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+    finding = Finding(id=None, scan_id=sid, host_id=None, tool="nuclei", severity="high", title="Open Redirect", description="", raw_json="{}", created_at="2024-01-01T00:00:00")
+    db.insert_finding(finding)
+    findings = db.query_findings_by_scan(sid)
+    assert findings[0].host_id is None
+
+
+def test_query_scans_by_client(db):
+    cid = db.insert_client(Client(id=None, name="Acme", domain="acme.com", firewall="", notes="", created_at="2024-01-01T00:00:00"))
+    db.insert_scan(Scan(id=None, client_id=cid, target="acme.com", status="complete", started_at="2024-01-01T00:00:00", finished_at="2024-01-01T01:00:00"))
+    scans = db.query_scans_by_client(cid)
+    assert len(scans) == 1
+    assert scans[0].client_id == cid

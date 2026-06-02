@@ -13,7 +13,7 @@ SecureOps is a standalone PyQt6 desktop penetration-testing and security-audit a
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | App skeleton — main window, dark theme, navigation, unified-view shell | In progress |
+| 1 | App skeleton — main window, dark theme, navigation, unified-view shell | Complete |
 | 2 | Scan engine — 8 threaded tool wrappers, chaining, SQLite persistence | Not started |
 | 3 | Live visuals — pipeline tracker, severity rings, attack-surface graph, streaming cards | Not started |
 | 4 | Final report + professional PDF export | Not started |
@@ -33,7 +33,6 @@ SecureOps is a standalone PyQt6 desktop penetration-testing and security-audit a
 
 | Date | What was deferred | Context / notes |
 |------|-------------------|-----------------|
-| 2026-06-01 | Phase 1 subagent-driven implementation — Tasks 7–12 remaining | Tasks 1–6 done (scaffolding, tool checker, app/theme, sidebar, status bar, dashboard). Task 6 code quality review was interrupted mid-run. Resume with code quality review of Task 6 (dashboard), then continue Tasks 7–12: client onboarding, scan view, report, settings, main window, entry point. Plan: `docs/superpowers/plans/2026-06-01-phase1-app-skeleton.md` |
 
 ---
 

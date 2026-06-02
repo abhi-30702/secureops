@@ -105,3 +105,30 @@ def test_nuclei_returns_finding(db):
     assert findings[0].title == "Apache Path Traversal"
     assert findings[0].scan_id == scan_id
     assert len(db.query_findings_by_scan(scan_id)) == 1
+
+
+# ── nmap ──────────────────────────────────────────────────────────────────────
+
+def test_nmap_returns_finding_for_open_port(db):
+    from workers.tools import nmap
+    xml_output = """<?xml version="1.0"?>
+<nmaprun>
+  <host>
+    <address addr="93.184.216.34" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="443">
+        <state state="open"/>
+        <service name="https" product="nginx" version="1.18.0"/>
+      </port>
+    </ports>
+  </host>
+</nmaprun>"""
+    scan_id = db.insert_scan(Scan(id=None, client_id=None, target="example.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+
+    findings = nmap.run(["93.184.216.34"], MockRunner(buffered=xml_output), db, scan_id)
+
+    assert len(findings) == 1
+    assert findings[0].tool == "nmap"
+    assert findings[0].title == "Open port 443/tcp (https)"
+    assert "nginx" in findings[0].description
+    assert len(db.query_findings_by_scan(scan_id)) == 1

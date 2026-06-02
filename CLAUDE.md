@@ -15,7 +15,7 @@ SecureOps is a standalone PyQt6 desktop penetration-testing and security-audit a
 |---|-------|--------|
 | 1 | App skeleton — main window, dark theme, navigation, unified-view shell | Complete |
 | 2 | Scan engine — 8 threaded tool wrappers, chaining, SQLite persistence | Complete |
-| 3 | Live visuals — pipeline tracker, severity rings, attack-surface graph, streaming cards | Not started |
+| 3 | Live visuals — pipeline tracker, severity rings, attack-surface graph, streaming cards | In progress |
 | 4 | Final report + professional PDF export | Not started |
 | 5 | Continuous monitoring (SOC) and scheduling | Not started |
 | 6 | AI Advisor agent (opt-in, consent, redaction, local-LLM alt) | Not started |
@@ -33,6 +33,7 @@ SecureOps is a standalone PyQt6 desktop penetration-testing and security-audit a
 
 | Date | What was deferred | Context / notes |
 |------|-------------------|-----------------|
+| 2026-06-02 | Phase 3 subagent-driven implementation | Design spec: `docs/superpowers/specs/2026-06-02-phase3-live-visuals-design.md`. Plan: `docs/superpowers/plans/2026-06-02-phase3-live-visuals.md`. 5 tasks: Task 1 PipelineTracker, Task 2 SeverityRings, Task 3 FindingCards, Task 4 AttackGraph, Task 5 ScanViewScreen integration. Use superpowers:subagent-driven-development to execute. |
 
 ---
 

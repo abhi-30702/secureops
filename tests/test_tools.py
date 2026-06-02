@@ -59,3 +59,32 @@ def test_naabu_returns_host_with_port(db):
     assert hosts[0].port == 443
     assert hosts[0].protocol == "tcp"
     assert hosts[0].source_tool == "naabu"
+
+
+# ── httpx ─────────────────────────────────────────────────────────────────────
+
+def test_httpx_returns_host_with_url(db):
+    from workers.tools import httpx as httpx_tool
+    line = '{"url": "https://api.example.com", "status_code": 200, "title": "API Gateway", "webserver": "nginx/1.18.0", "input": "api.example.com:443"}'
+    scan_id = db.insert_scan(Scan(id=None, client_id=None, target="example.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+
+    hosts = httpx_tool.run(["api.example.com:443"], MockRunner([line]), db, scan_id)
+
+    assert len(hosts) == 1
+    assert hosts[0].url == "https://api.example.com"
+    assert hosts[0].service == "nginx/1.18.0"
+    assert hosts[0].source_tool == "httpx"
+
+
+# ── katana ────────────────────────────────────────────────────────────────────
+
+def test_katana_returns_host_with_url(db):
+    from workers.tools import katana
+    line = '{"timestamp": "2024-01-01T00:00:00Z", "request": {"method": "GET", "endpoint": "https://api.example.com/login"}}'
+    scan_id = db.insert_scan(Scan(id=None, client_id=None, target="example.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+
+    hosts = katana.run(["https://api.example.com"], MockRunner([line]), db, scan_id)
+
+    assert len(hosts) == 1
+    assert hosts[0].url == "https://api.example.com/login"
+    assert hosts[0].source_tool == "katana"

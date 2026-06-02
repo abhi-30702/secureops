@@ -88,3 +88,20 @@ def test_katana_returns_host_with_url(db):
     assert len(hosts) == 1
     assert hosts[0].url == "https://api.example.com/login"
     assert hosts[0].source_tool == "katana"
+
+
+# ── nuclei ────────────────────────────────────────────────────────────────────
+
+def test_nuclei_returns_finding(db):
+    from workers.tools import nuclei
+    line = '{"template-id": "cve-2021-41773", "info": {"name": "Apache Path Traversal", "severity": "critical", "description": "Allows path traversal"}, "host": "https://api.example.com", "matched-at": "https://api.example.com/.%2e/etc/passwd", "timestamp": "2024-01-01T00:00:00Z"}'
+    scan_id = db.insert_scan(Scan(id=None, client_id=None, target="example.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+
+    findings = nuclei.run(["https://api.example.com"], MockRunner([line]), db, scan_id)
+
+    assert len(findings) == 1
+    assert findings[0].tool == "nuclei"
+    assert findings[0].severity == "critical"
+    assert findings[0].title == "Apache Path Traversal"
+    assert findings[0].scan_id == scan_id
+    assert len(db.query_findings_by_scan(scan_id)) == 1

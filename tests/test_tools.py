@@ -165,3 +165,33 @@ def test_nikto_returns_finding_from_json(db, tmp_path):
     assert len(findings) == 1
     assert findings[0].tool == "nikto"
     assert "X-Frame-Options" in findings[0].title
+
+
+# ── testssl ───────────────────────────────────────────────────────────────────
+
+def test_testssl_returns_finding_for_critical(db):
+    from workers.tools import testssl
+    import json as _json
+
+    json_content = _json.dumps([
+        {"id": "heartbleed", "severity": "CRITICAL", "finding": "VULNERABLE, uses SSLv3+"},
+        {"id": "cert_trust", "severity": "OK", "finding": "certificate chain valid"},
+    ])
+
+    class TestsslMockRunner:
+        def run_buffered(self, cmd, timeout=300):
+            jsonfile_flag = "--jsonfile"
+            if jsonfile_flag in cmd:
+                idx = cmd.index(jsonfile_flag)
+                path = cmd[idx + 1]
+                with open(path, "w") as f:
+                    f.write(json_content)
+            return ""
+
+    scan_id = db.insert_scan(Scan(id=None, client_id=None, target="example.com", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+    findings = testssl.run(["https://api.example.com"], TestsslMockRunner(), db, scan_id)
+
+    assert len(findings) == 1
+    assert findings[0].tool == "testssl"
+    assert findings[0].severity == "critical"
+    assert "heartbleed" in findings[0].title

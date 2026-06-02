@@ -1,5 +1,4 @@
-import threading
-from models import Host, Finding, Scan
+from models import Scan
 from db import DB
 
 

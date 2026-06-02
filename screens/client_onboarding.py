@@ -64,5 +64,18 @@ class ClientOnboardingScreen(QWidget):
         outer.addStretch()
 
     def _on_save(self):
+        if self._db is not None:
+            from models import Client
+            from datetime import datetime, timezone
+            client = Client(
+                id=None,
+                name=self._company_name_input.text().strip() or "Unnamed",
+                domain=self._domain_input.text().strip(),
+                firewall=self._firewall_combo.currentText(),
+                notes=self._notes_input.toPlainText(),
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+            self._db.insert_client(client)
+
         self._confirmation_label.setVisible(True)
         QTimer.singleShot(2000, lambda: self._confirmation_label.setVisible(False))

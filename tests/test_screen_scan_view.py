@@ -44,7 +44,6 @@ def test_scan_view_has_terminal_panel(qtbot):
 
 
 from db import DB
-from models import Scan
 
 
 def _make_db():
@@ -58,7 +57,7 @@ def test_scan_view_start_button_enabled_with_db(qtbot):
 
 
 def test_scan_view_has_status_label(qtbot):
-    screen = ScanViewScreen(db=_make_db())
+    screen = ScanViewScreen()
     qtbot.addWidget(screen)
     assert screen._status_label is not None
 

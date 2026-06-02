@@ -70,7 +70,6 @@ class DashboardScreen(QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        # Warning banner (hidden by default)
         self._warning_banner = QLabel(
             "⚠  Critical tools missing — check Settings"
         )
@@ -81,7 +80,6 @@ class DashboardScreen(QWidget):
         self._warning_banner.setVisible(is_critical_missing(self._tool_results))
         layout.addWidget(self._warning_banner)
 
-        # Metric cards
         cards_row = QHBoxLayout()
         for title in ("Clients", "Scans", "Findings"):
             card = MetricCard(title)
@@ -89,7 +87,6 @@ class DashboardScreen(QWidget):
             cards_row.addWidget(card)
         layout.addLayout(cards_row)
 
-        # Middle panels
         middle_row = QHBoxLayout()
         middle_row.addWidget(
             _placeholder_panel("Attack Surface Graph\nLive in Phase 3"), stretch=1
@@ -99,7 +96,6 @@ class DashboardScreen(QWidget):
         )
         layout.addLayout(middle_row)
 
-        # Severity strip
         self._severity_strip = SeverityStrip()
         layout.addWidget(self._severity_strip)
 

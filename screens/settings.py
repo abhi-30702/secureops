@@ -5,6 +5,8 @@ from PyQt6.QtWidgets import (
 )
 from tool_checker import TOOLS, CRITICAL_TOOLS
 
+_COLOR_CRITICAL = "#ff8800"
+
 
 class SettingsScreen(QWidget):
     def __init__(self, tool_results: dict, parent=None):
@@ -76,8 +78,8 @@ class SettingsScreen(QWidget):
         if is_critical:
             critical_tag = QLabel("CRITICAL")
             critical_tag.setStyleSheet(
-                "color: #ff8800; font-size: 9px; "
-                "border: 1px solid #ff8800; border-radius: 3px; padding: 1px 4px;"
+                f"color: {_COLOR_CRITICAL}; font-size: 9px; "
+                f"border: 1px solid {_COLOR_CRITICAL}; border-radius: 3px; padding: 1px 4px;"
             )
         else:
             critical_tag = QLabel("")

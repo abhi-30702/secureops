@@ -53,7 +53,6 @@ class AdvisorWorker(QThread):
         try:
             scan = self._resolve_scan()
             if scan is None or self._cancelled:
-                self.finished.emit()
                 return
 
             client = self._resolve_client(scan.client_id)
@@ -61,7 +60,6 @@ class AdvisorWorker(QThread):
             findings = self._db.query_findings_by_scan(self._scan_id)
 
             if self._cancelled:
-                self.finished.emit()
                 return
 
             from advisor.prompt_builder import PromptBuilder
@@ -71,7 +69,6 @@ class AdvisorWorker(QThread):
             response = GeminiClient(self._api_key).generate(prompt)
 
             if self._cancelled:
-                self.finished.emit()
                 return
 
             items = parse_advisor_response(response, self._scan_id)
@@ -85,12 +82,12 @@ class AdvisorWorker(QThread):
                 item.id = self._db.insert_advisory_item(item)
                 self.item_ready.emit(item)
 
-            self.finished.emit()
-
         except RuntimeError as exc:
             self.error.emit(str(exc))
         except Exception as exc:
             self.error.emit(f"Unexpected error: {exc}")
+        finally:
+            self.finished.emit()
 
     def _resolve_scan(self):
         for c in self._db.query_clients():

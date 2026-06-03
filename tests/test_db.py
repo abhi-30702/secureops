@@ -1,4 +1,4 @@
-from models import Client, Scan, Host, Finding, Schedule
+from models import Client, Scan, Host, Finding, Schedule, AdvisoryItem
 from db import DB
 
 
@@ -108,3 +108,57 @@ def test_query_recent_findings_limit(db):
                                   raw_json="{}", created_at=f"2026-06-03T10:0{i}:00"))
     findings = db.query_recent_findings(limit=3)
     assert len(findings) == 3
+
+
+def test_insert_and_query_advisory_item(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="t.com",
+                              status="complete", started_at="2026-06-03T00:00:00",
+                              finished_at=None))
+    item = AdvisoryItem(id=None, scan_id=sid, tier="immediate",
+                        text="Patch now", accepted=False,
+                        created_at="2026-06-03T00:00:00")
+    iid = db.insert_advisory_item(item)
+    items = db.query_advisory_items_by_scan(sid)
+    assert len(items) == 1
+    assert items[0].tier == "immediate"
+    assert items[0].id == iid
+    assert items[0].accepted is False
+
+
+def test_update_advisory_item_accepted(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="t.com",
+                              status="complete", started_at="2026-06-03T00:00:00",
+                              finished_at=None))
+    iid = db.insert_advisory_item(AdvisoryItem(id=None, scan_id=sid, tier="preventive",
+                                               text="Enable monitoring", accepted=False,
+                                               created_at="2026-06-03T00:00:00"))
+    db.update_advisory_item_accepted(iid, True)
+    items = db.query_advisory_items_by_scan(sid)
+    assert items[0].accepted is True
+
+
+def test_delete_advisory_items_by_scan(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="t.com",
+                              status="complete", started_at="2026-06-03T00:00:00",
+                              finished_at=None))
+    for tier in ("immediate", "short_term", "preventive"):
+        db.insert_advisory_item(AdvisoryItem(id=None, scan_id=sid, tier=tier,
+                                             text="action", accepted=False,
+                                             created_at="2026-06-03T00:00:00"))
+    db.delete_advisory_items_by_scan(sid)
+    assert db.query_advisory_items_by_scan(sid) == []
+
+
+def test_get_setting_returns_none_when_absent(db):
+    assert db.get_setting("ai_advisor_enabled") is None
+
+
+def test_set_and_get_setting(db):
+    db.set_setting("ai_advisor_enabled", "1")
+    assert db.get_setting("ai_advisor_enabled") == "1"
+
+
+def test_set_setting_overwrites(db):
+    db.set_setting("gemini_api_key", "old-key")
+    db.set_setting("gemini_api_key", "new-key")
+    assert db.get_setting("gemini_api_key") == "new-key"

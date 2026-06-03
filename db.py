@@ -50,6 +50,18 @@ CREATE TABLE IF NOT EXISTS schedules (
     last_run    TEXT,
     created_at  TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS advisory_items (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_id    INTEGER NOT NULL REFERENCES scans(id),
+    tier       TEXT NOT NULL,
+    text       TEXT NOT NULL,
+    accepted   INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS app_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -165,3 +177,53 @@ class DB:
                         tool=r["tool"], severity=r["severity"], title=r["title"],
                         description=r["description"] or "", raw_json=r["raw_json"] or "",
                         created_at=r["created_at"]) for r in rows]
+
+    def insert_advisory_item(self, item) -> int:
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO advisory_items (scan_id, tier, text, accepted, created_at)"
+                " VALUES (?,?,?,?,?)",
+                (item.scan_id, item.tier, item.text,
+                 1 if item.accepted else 0, item.created_at),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def query_advisory_items_by_scan(self, scan_id: int) -> list:
+        rows = self._conn.execute(
+            "SELECT * FROM advisory_items WHERE scan_id=? ORDER BY id", (scan_id,)
+        ).fetchall()
+        from models import AdvisoryItem
+        return [AdvisoryItem(id=r["id"], scan_id=r["scan_id"], tier=r["tier"],
+                             text=r["text"], accepted=bool(r["accepted"]),
+                             created_at=r["created_at"]) for r in rows]
+
+    def update_advisory_item_accepted(self, item_id: int, accepted: bool) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE advisory_items SET accepted=? WHERE id=?",
+                (1 if accepted else 0, item_id),
+            )
+            self._conn.commit()
+
+    def delete_advisory_items_by_scan(self, scan_id: int) -> None:
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM advisory_items WHERE scan_id=?", (scan_id,)
+            )
+            self._conn.commit()
+
+    def get_setting(self, key: str) -> str | None:
+        row = self._conn.execute(
+            "SELECT value FROM app_settings WHERE key=?", (key,)
+        ).fetchone()
+        return row["value"] if row else None
+
+    def set_setting(self, key: str, value: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO app_settings (key, value) VALUES (?,?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, value),
+            )
+            self._conn.commit()

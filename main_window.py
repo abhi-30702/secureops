@@ -19,6 +19,8 @@ class MainWindow(QMainWindow):
         self._sidebar: Sidebar | None = None
         self._stack: QStackedWidget | None = None
         self._status_bar_widget: ToolStatusBar | None = None
+        self._scan_view: ScanViewScreen | None = None
+        self._report: ReportScreen | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -39,10 +41,12 @@ class MainWindow(QMainWindow):
         self._sidebar = Sidebar()
         self._stack = QStackedWidget()
 
+        self._scan_view = ScanViewScreen(db=self._db)
+        self._report = ReportScreen(db=self._db)
         self._stack.addWidget(DashboardScreen(self._tool_results))        # 0
         self._stack.addWidget(ClientOnboardingScreen(db=self._db))        # 1
-        self._stack.addWidget(ScanViewScreen(db=self._db))                # 2
-        self._stack.addWidget(ReportScreen())                              # 3
+        self._stack.addWidget(self._scan_view)                            # 2
+        self._stack.addWidget(self._report)                               # 3
         self._stack.addWidget(SettingsScreen(self._tool_results))         # 4
 
         row_layout.addWidget(self._sidebar)
@@ -56,3 +60,8 @@ class MainWindow(QMainWindow):
         self._status_bar_widget.navigate_to_settings.connect(
             lambda: self._stack.setCurrentIndex(4)
         )
+        self._scan_view.scan_ready.connect(self._on_scan_ready)
+
+    def _on_scan_ready(self, scan_id: int):
+        self._report.load_scan(scan_id)
+        self._stack.setCurrentIndex(3)

@@ -36,3 +36,18 @@ def test_main_window_has_status_bar_widget(qtbot):
     win = MainWindow(_all_present())
     qtbot.addWidget(win)
     assert win._status_bar_widget is not None
+
+
+def test_main_window_report_screen_has_db(qtbot):
+    from screens.report import ReportScreen
+    from db import DB
+
+    def _make_db():
+        return DB(":memory:")
+
+    db = _make_db()
+    win = MainWindow(tool_results={}, db=db)
+    qtbot.addWidget(win)
+    report = win._stack.widget(3)
+    assert isinstance(report, ReportScreen)
+    assert report._db is db

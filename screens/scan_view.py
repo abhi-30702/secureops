@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QSplitter, QPlainTextEdit,
@@ -11,6 +11,8 @@ from screens.widgets.finding_cards import FindingCards
 
 
 class ScanViewScreen(QWidget):
+    scan_ready = pyqtSignal(int)
+
     def __init__(self, db=None, parent=None):
         super().__init__(parent)
         self._db = db
@@ -164,6 +166,8 @@ class ScanViewScreen(QWidget):
         if self._worker:
             self._worker.deleteLater()
             self._worker = None
+        if self._scan_id is not None:
+            self.scan_ready.emit(self._scan_id)
 
     def _on_scan_failed(self, msg: str):
         self._status_label.setText(f"Stopped: {msg}")

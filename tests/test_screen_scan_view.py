@@ -103,3 +103,9 @@ def test_scan_view_finding_cards_panel_is_finding_cards(qtbot):
     screen = ScanViewScreen(db=_make_db())
     qtbot.addWidget(screen)
     assert isinstance(screen._finding_cards_panel, FindingCards)
+
+
+def test_scan_view_has_scan_ready_signal(qtbot):
+    screen = ScanViewScreen()
+    qtbot.addWidget(screen)
+    assert hasattr(screen, "scan_ready")

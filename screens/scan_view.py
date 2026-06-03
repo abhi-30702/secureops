@@ -86,6 +86,8 @@ class ScanViewScreen(QWidget):
     def _on_start_cancel(self):
         if self._worker and self._worker.isRunning():
             self._worker.cancel()
+            self._start_btn.setEnabled(False)
+            self._start_btn.setText("Cancelling…")
             return
 
         target = self._target_input.text().strip()
@@ -111,6 +113,10 @@ class ScanViewScreen(QWidget):
         self._severity_panel.reset()
         self._finding_cards_panel.reset()
 
+        if self._worker is not None:
+            self._worker.deleteLater()
+            self._worker = None
+
         self._worker = ScanWorker(target=target, scan_id=self._scan_id, db=self._db)
 
         self._worker.tool_started.connect(self._pipeline_panel.on_tool_started)
@@ -128,9 +134,9 @@ class ScanViewScreen(QWidget):
         self._worker.finding_found.connect(self._finding_cards_panel.add_finding)
         self._worker.scan_complete.connect(self._finding_cards_panel.on_scan_complete)
 
-        self._worker.tool_started.connect(lambda name: self._status_label.setText(f"{name} — running…"))
-        self._worker.tool_finished.connect(lambda name, n: self._status_label.setText(f"{name} — {n} items"))
-        self._worker.tool_failed.connect(lambda name, msg: self._log(f"[FAILED] {name}: {msg}"))
+        self._worker.tool_started.connect(self._on_tool_started)
+        self._worker.tool_finished.connect(self._on_tool_finished)
+        self._worker.tool_failed.connect(self._on_tool_failed_log)
         self._worker.log_line.connect(self._log)
         self._worker.scan_complete.connect(self._on_scan_complete)
         self._worker.scan_failed.connect(self._on_scan_failed)
@@ -142,10 +148,27 @@ class ScanViewScreen(QWidget):
     def _log(self, line: str):
         self._terminal_panel.appendPlainText(line)
 
+    def _on_tool_started(self, name: str):
+        self._status_label.setText(f"{name} — running…")
+
+    def _on_tool_finished(self, name: str, count: int):
+        self._status_label.setText(f"{name} — {count} items")
+
+    def _on_tool_failed_log(self, name: str, msg: str):
+        self._log(f"[FAILED] {name}: {msg}")
+
     def _on_scan_complete(self, hosts: int, findings: int):
         self._status_label.setText(f"Complete — {hosts} hosts, {findings} findings")
+        self._start_btn.setEnabled(True)
         self._start_btn.setText("▶  Start Scan")
+        if self._worker:
+            self._worker.deleteLater()
+            self._worker = None
 
     def _on_scan_failed(self, msg: str):
         self._status_label.setText(f"Stopped: {msg}")
+        self._start_btn.setEnabled(True)
         self._start_btn.setText("▶  Start Scan")
+        if self._worker:
+            self._worker.deleteLater()
+            self._worker = None

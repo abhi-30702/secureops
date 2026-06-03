@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QSplitter, QPlainTextEdit,
@@ -184,5 +184,5 @@ class ScanViewScreen(QWidget):
         if not self._db:
             return
         self._target_input.setText(target)
-        from PyQt6.QtCore import QTimer
+        # Defer scan start to next event-loop tick so callers can read _target_input synchronously
         QTimer.singleShot(0, self._on_start_cancel)

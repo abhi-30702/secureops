@@ -3,6 +3,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QFrame, QScrollArea, QComboBox,
 )
+from datetime import datetime, timezone
+from models import Schedule
 from tool_checker import TOOLS, CRITICAL_TOOLS
 
 _COLOR_CRITICAL = "#ff8800"
@@ -97,8 +99,6 @@ class SettingsScreen(QWidget):
             return
         interval_map = {"Every 1h": 1, "Every 4h": 4, "Every 24h": 24}
         interval_h = interval_map.get(self._schedule_interval.currentText(), 24)
-        from datetime import datetime, timezone
-        from models import Schedule
         s = Schedule(id=None, target=target, interval_h=interval_h,
                      enabled=True, last_run=None,
                      created_at=datetime.now(timezone.utc).isoformat())

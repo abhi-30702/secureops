@@ -2,21 +2,12 @@ from datetime import datetime, timezone
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QFrame, QSplitter, QPlainTextEdit,
+    QLineEdit, QPushButton, QSplitter, QPlainTextEdit,
 )
-
-
-def _placeholder_panel(text: str) -> QFrame:
-    frame = QFrame()
-    frame.setObjectName("panel")
-    layout = QVBoxLayout(frame)
-    layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    label = QLabel(text)
-    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    label.setStyleSheet("color: #64748b; font-size: 12px;")
-    label.setWordWrap(True)
-    layout.addWidget(label)
-    return frame
+from screens.widgets.pipeline_tracker import PipelineTracker
+from screens.widgets.attack_graph import AttackGraph
+from screens.widgets.severity_rings import SeverityRings
+from screens.widgets.finding_cards import FindingCards
 
 
 class ScanViewScreen(QWidget):
@@ -26,10 +17,10 @@ class ScanViewScreen(QWidget):
         self._target_input: QLineEdit | None = None
         self._start_btn: QPushButton | None = None
         self._status_label: QLabel | None = None
-        self._pipeline_panel: QFrame | None = None
-        self._attack_graph_panel: QFrame | None = None
-        self._severity_panel: QFrame | None = None
-        self._finding_cards_panel: QFrame | None = None
+        self._pipeline_panel: PipelineTracker | None = None
+        self._attack_graph_panel: AttackGraph | None = None
+        self._severity_panel: SeverityRings | None = None
+        self._finding_cards_panel: FindingCards | None = None
         self._terminal_panel: QPlainTextEdit | None = None
         self._worker = None
         self._scan_id: int | None = None
@@ -55,10 +46,11 @@ class ScanViewScreen(QWidget):
         self._status_label.setStyleSheet("color: #64748b; font-size: 11px;")
         layout.addWidget(self._status_label)
 
-        self._pipeline_panel = _placeholder_panel("Pipeline Tracker\nPhase 3")
-        self._attack_graph_panel = _placeholder_panel("Attack Surface Graph\nPhase 3")
-        self._severity_panel = _placeholder_panel("Severity\nRings\nPhase 3")
-        self._finding_cards_panel = _placeholder_panel("Finding Cards Stream\nPhase 3")
+        self._pipeline_panel = PipelineTracker()
+        self._attack_graph_panel = AttackGraph()
+        self._attack_graph_panel.reset()
+        self._severity_panel = SeverityRings()
+        self._finding_cards_panel = FindingCards()
 
         self._terminal_panel = QPlainTextEdit()
         self._terminal_panel.setReadOnly(True)
@@ -114,7 +106,28 @@ class ScanViewScreen(QWidget):
         )
         self._scan_id = self._db.insert_scan(scan)
 
+        self._pipeline_panel.reset()
+        self._attack_graph_panel.reset()
+        self._severity_panel.reset()
+        self._finding_cards_panel.reset()
+
         self._worker = ScanWorker(target=target, scan_id=self._scan_id, db=self._db)
+
+        self._worker.tool_started.connect(self._pipeline_panel.on_tool_started)
+        self._worker.tool_finished.connect(self._pipeline_panel.on_tool_finished)
+        self._worker.tool_failed.connect(self._pipeline_panel.on_tool_failed)
+        self._worker.scan_complete.connect(self._pipeline_panel.on_scan_complete)
+
+        self._worker.host_found.connect(self._attack_graph_panel.add_host)
+        self._worker.finding_found.connect(self._attack_graph_panel.add_finding)
+        self._worker.scan_complete.connect(self._attack_graph_panel.on_scan_complete)
+
+        self._worker.finding_found.connect(self._severity_panel.add_finding)
+        self._worker.scan_complete.connect(self._severity_panel.on_scan_complete)
+
+        self._worker.finding_found.connect(self._finding_cards_panel.add_finding)
+        self._worker.scan_complete.connect(self._finding_cards_panel.on_scan_complete)
+
         self._worker.tool_started.connect(lambda name: self._status_label.setText(f"{name} — running…"))
         self._worker.tool_finished.connect(lambda name, n: self._status_label.setText(f"{name} — {n} items"))
         self._worker.tool_failed.connect(lambda name, msg: self._log(f"[FAILED] {name}: {msg}"))

@@ -73,3 +73,33 @@ def test_scan_view_start_button_still_disabled_without_db(qtbot):
     screen = ScanViewScreen(db=None)
     qtbot.addWidget(screen)
     assert not screen._start_btn.isEnabled()
+
+
+from screens.widgets.pipeline_tracker import PipelineTracker
+from screens.widgets.attack_graph import AttackGraph
+from screens.widgets.severity_rings import SeverityRings
+from screens.widgets.finding_cards import FindingCards
+
+
+def test_scan_view_pipeline_panel_is_pipeline_tracker(qtbot):
+    screen = ScanViewScreen(db=_make_db())
+    qtbot.addWidget(screen)
+    assert isinstance(screen._pipeline_panel, PipelineTracker)
+
+
+def test_scan_view_attack_graph_panel_is_attack_graph(qtbot):
+    screen = ScanViewScreen(db=_make_db())
+    qtbot.addWidget(screen)
+    assert isinstance(screen._attack_graph_panel, AttackGraph)
+
+
+def test_scan_view_severity_panel_is_severity_rings(qtbot):
+    screen = ScanViewScreen(db=_make_db())
+    qtbot.addWidget(screen)
+    assert isinstance(screen._severity_panel, SeverityRings)
+
+
+def test_scan_view_finding_cards_panel_is_finding_cards(qtbot):
+    screen = ScanViewScreen(db=_make_db())
+    qtbot.addWidget(screen)
+    assert isinstance(screen._finding_cards_panel, FindingCards)

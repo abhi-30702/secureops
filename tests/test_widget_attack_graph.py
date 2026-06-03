@@ -64,3 +64,23 @@ def test_attack_graph_reset_clears_nodes(qtbot):
     graph.add_finding(_finding())
     graph.reset()
     assert graph.node_count == 1
+
+
+def test_attack_graph_reheat_temperature_on_node_add(qtbot):
+    graph = AttackGraph()
+    qtbot.addWidget(graph)
+    graph.reset()
+    graph._temperature = 1.0
+    graph.add_host(_host(subdomain="api.example.com"))
+    assert graph._temperature >= 80.0
+
+
+def test_attack_graph_unknown_severity_falls_back_to_info(qtbot):
+    graph = AttackGraph()
+    qtbot.addWidget(graph)
+    graph.reset()
+    f = Finding(id=None, scan_id=1, host_id=None, tool="nuclei",
+                severity="bogus", title="X", description="",
+                raw_json="{}", created_at="2024-01-01T00:00:00")
+    graph.add_finding(f)
+    assert graph.node_count == 2

@@ -30,6 +30,9 @@ _NODE_SIZES = {
 }
 
 
+_PG_CONFIGURED = False
+
+
 class AttackGraph(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -47,8 +50,11 @@ class AttackGraph(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        pg.setConfigOption("background", "#0a0e1a")
-        pg.setConfigOption("foreground", "#64748b")
+        global _PG_CONFIGURED
+        if not _PG_CONFIGURED:
+            pg.setConfigOption("background", "#0a0e1a")
+            pg.setConfigOption("foreground", "#64748b")
+            _PG_CONFIGURED = True
         self._view = pg.GraphicsLayoutWidget()
         self._plot = self._view.addPlot()
         self._plot.hideAxis("left")
@@ -58,7 +64,7 @@ class AttackGraph(QWidget):
         self._plot.addItem(self._graph_item)
         layout.addWidget(self._view)
 
-    def reset(self, target: str = "Target"):
+    def reset(self):
         self._timer.stop()
         self._positions = [[0.0, 0.0]]
         self._node_types = ["target"]
@@ -76,9 +82,9 @@ class AttackGraph(QWidget):
         self._positions.append([x, y])
         self._node_types.append(node_type)
         self._node_keys[key] = idx
-        parent_idx = self._node_keys.get(parent_key, 0)
+        parent_idx = self._node_keys.get(parent_key, 0) if parent_key is not None else 0
         self._edges.append((parent_idx, idx))
-        self._temperature = max(self._temperature, 20.0)
+        self._temperature = max(self._temperature, 80.0)
         return idx
 
     def add_host(self, host):

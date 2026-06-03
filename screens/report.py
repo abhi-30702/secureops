@@ -425,6 +425,7 @@ class ReportScreen(QWidget):
     def reset(self):
         if self._advisor_worker is not None:
             self._advisor_worker.cancel()
+            self._advisor_worker.wait(500)
             self._advisor_worker = None
         self._scan_id = None
         self._advisor_panel = None

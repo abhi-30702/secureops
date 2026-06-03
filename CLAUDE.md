@@ -17,7 +17,7 @@ SecureOps is a standalone PyQt6 desktop penetration-testing and security-audit a
 | 2 | Scan engine — 8 threaded tool wrappers, chaining, SQLite persistence | Complete |
 | 3 | Live visuals — pipeline tracker, severity rings, attack-surface graph, streaming cards | Complete |
 | 4 | Final report + professional PDF export | Complete |
-| 5 | Continuous monitoring (SOC) and scheduling | Not started |
+| 5 | Continuous monitoring (SOC) and scheduling | Complete |
 | 6 | AI Advisor agent (opt-in, consent, redaction, local-LLM alt) | Not started |
 | 7 | Packaging — .deb and .AppImage, bundled tools | Not started |
 

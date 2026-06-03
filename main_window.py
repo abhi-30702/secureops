@@ -21,6 +21,8 @@ class MainWindow(QMainWindow):
         self._status_bar_widget: ToolStatusBar | None = None
         self._scan_view: ScanViewScreen | None = None
         self._report: ReportScreen | None = None
+        self._dashboard: DashboardScreen | None = None
+        self._schedule_manager = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -43,11 +45,12 @@ class MainWindow(QMainWindow):
 
         self._scan_view = ScanViewScreen(db=self._db)
         self._report = ReportScreen(db=self._db)
-        self._stack.addWidget(DashboardScreen(self._tool_results))        # 0
+        self._dashboard = DashboardScreen(self._tool_results, db=self._db)
+        self._stack.addWidget(self._dashboard)                            # 0
         self._stack.addWidget(ClientOnboardingScreen(db=self._db))        # 1
         self._stack.addWidget(self._scan_view)                            # 2
         self._stack.addWidget(self._report)                               # 3
-        self._stack.addWidget(SettingsScreen(self._tool_results))         # 4
+        self._stack.addWidget(SettingsScreen(self._tool_results, db=self._db))  # 4
 
         row_layout.addWidget(self._sidebar)
         row_layout.addWidget(self._stack, stretch=1)
@@ -62,6 +65,17 @@ class MainWindow(QMainWindow):
         )
         self._scan_view.scan_ready.connect(self._on_scan_ready)
 
+        if self._db:
+            from scheduler.schedule_manager import ScheduleManager
+            self._schedule_manager = ScheduleManager(db=self._db, parent=self)
+            self._schedule_manager.scan_due.connect(self._on_scan_due)
+
     def _on_scan_ready(self, scan_id: int):
         self._report.load_scan(scan_id)
         self._stack.setCurrentIndex(3)
+        if self._dashboard:
+            self._dashboard.refresh()
+
+    def _on_scan_due(self, target: str):
+        self._stack.setCurrentIndex(2)
+        self._scan_view.start_scan(target)

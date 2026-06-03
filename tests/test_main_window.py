@@ -51,3 +51,14 @@ def test_main_window_report_screen_has_db(qtbot):
     report = win._stack.widget(3)
     assert isinstance(report, ReportScreen)
     assert report._db is db
+
+
+def test_main_window_dashboard_has_db(qtbot):
+    from screens.dashboard import DashboardScreen
+    from db import DB
+    db = DB(":memory:")
+    win = MainWindow(tool_results={}, db=db)
+    qtbot.addWidget(win)
+    dashboard = win._stack.widget(0)
+    assert isinstance(dashboard, DashboardScreen)
+    assert dashboard._db is db

@@ -1,7 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QFrame, QScrollArea,
+    QLineEdit, QPushButton, QFrame, QScrollArea, QComboBox,
 )
 from tool_checker import TOOLS, CRITICAL_TOOLS
 
@@ -9,10 +9,15 @@ _COLOR_CRITICAL = "#ff8800"
 
 
 class SettingsScreen(QWidget):
-    def __init__(self, tool_results: dict, parent=None):
+    def __init__(self, tool_results: dict, db=None, parent=None):
         super().__init__(parent)
         self._tool_results = tool_results
+        self._db = db
         self._tool_rows: dict[str, dict] = {}
+        self._schedule_target: QLineEdit | None = None
+        self._schedule_interval: QComboBox | None = None
+        self._add_schedule_btn: QPushButton | None = None
+        self._schedules_layout: QVBoxLayout | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -56,6 +61,67 @@ class SettingsScreen(QWidget):
         save_btn.setEnabled(False)
         save_btn.setToolTip("Path overrides wired in Phase 2")
         layout.addWidget(save_btn)
+
+        sched_label = QLabel("SCHEDULED SCANS")
+        sched_label.setStyleSheet("color: #64748b; font-size: 10px; letter-spacing: 1px;")
+        layout.addWidget(sched_label)
+
+        sched_input_row = QHBoxLayout()
+        self._schedule_target = QLineEdit()
+        self._schedule_target.setPlaceholderText("Target domain (e.g. example.com)")
+        self._schedule_interval = QComboBox()
+        for label in ("Every 1h", "Every 4h", "Every 24h"):
+            self._schedule_interval.addItem(label)
+        self._schedule_interval.setCurrentIndex(2)
+        self._add_schedule_btn = QPushButton("+ Add")
+        self._add_schedule_btn.setFixedWidth(70)
+        self._add_schedule_btn.clicked.connect(self._on_add_schedule)
+        sched_input_row.addWidget(self._schedule_target, stretch=1)
+        sched_input_row.addWidget(self._schedule_interval)
+        sched_input_row.addWidget(self._add_schedule_btn)
+        layout.addLayout(sched_input_row)
+
+        sched_list = QFrame()
+        sched_list.setObjectName("panel")
+        self._schedules_layout = QVBoxLayout(sched_list)
+        self._schedules_layout.setContentsMargins(8, 8, 8, 8)
+        self._schedules_layout.setSpacing(4)
+        layout.addWidget(sched_list)
+        self._refresh_schedules()
+
+    def _on_add_schedule(self):
+        if not self._db:
+            return
+        target = self._schedule_target.text().strip()
+        if not target:
+            return
+        interval_map = {"Every 1h": 1, "Every 4h": 4, "Every 24h": 24}
+        interval_h = interval_map.get(self._schedule_interval.currentText(), 24)
+        from datetime import datetime, timezone
+        from models import Schedule
+        s = Schedule(id=None, target=target, interval_h=interval_h,
+                     enabled=True, last_run=None,
+                     created_at=datetime.now(timezone.utc).isoformat())
+        self._db.insert_schedule(s)
+        self._schedule_target.clear()
+        self._refresh_schedules()
+
+    def _refresh_schedules(self):
+        if self._schedules_layout is None:
+            return
+        while self._schedules_layout.count():
+            item = self._schedules_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if not self._db:
+            return
+        for sched in self._db.query_schedules():
+            row = QLabel(
+                f"{sched.target}  ·  Every {sched.interval_h}h  ·  "
+                f"{'Enabled' if sched.enabled else 'Disabled'}"
+            )
+            row.setStyleSheet("color: #cbd5e1; font-size: 11px;")
+            self._schedules_layout.addWidget(row)
 
     def _build_tool_row(self, tool: str, present: bool, is_critical: bool) -> QFrame:
         row = QFrame()

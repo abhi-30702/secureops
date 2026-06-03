@@ -109,3 +109,12 @@ def test_scan_view_has_scan_ready_signal(qtbot):
     screen = ScanViewScreen()
     qtbot.addWidget(screen)
     assert hasattr(screen, "scan_ready")
+
+
+def test_scan_view_start_scan_sets_target(qtbot):
+    from db import DB
+    db = DB(":memory:")
+    screen = ScanViewScreen(db=db)
+    qtbot.addWidget(screen)
+    screen.start_scan("example.com")
+    assert screen._target_input.text() == "example.com"

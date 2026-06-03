@@ -176,3 +176,13 @@ class ScanViewScreen(QWidget):
         if self._worker:
             self._worker.deleteLater()
             self._worker = None
+
+    def start_scan(self, target: str) -> None:
+        """Programmatically trigger a scan. No-op if already running or no DB."""
+        if self._worker and self._worker.isRunning():
+            return
+        if not self._db:
+            return
+        self._target_input.setText(target)
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._on_start_cancel)

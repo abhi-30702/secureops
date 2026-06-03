@@ -54,3 +54,37 @@ def test_settings_present_tool_shows_true_status(qtbot):
     screen = SettingsScreen(_all_present())
     qtbot.addWidget(screen)
     assert screen._tool_rows["subfinder"]["present"] is True
+
+
+from db import DB
+from models import Schedule
+
+
+def _make_db():
+    return DB(":memory:")
+
+
+def test_settings_has_schedule_section(qtbot):
+    screen = SettingsScreen(_all_present(), db=_make_db())
+    qtbot.addWidget(screen)
+    assert screen._schedule_target is not None
+
+
+def test_settings_add_schedule_inserts_to_db(qtbot):
+    db = _make_db()
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    screen._schedule_target.setText("example.com")
+    screen._add_schedule_btn.click()
+    schedules = db.query_schedules()
+    assert len(schedules) == 1
+    assert schedules[0].target == "example.com"
+
+
+def test_settings_add_schedule_ignores_empty_target(qtbot):
+    db = _make_db()
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    screen._schedule_target.setText("")
+    screen._add_schedule_btn.click()
+    assert db.query_schedules() == []

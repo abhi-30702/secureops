@@ -88,3 +88,57 @@ def test_settings_add_schedule_ignores_empty_target(qtbot):
     screen._schedule_target.setText("")
     screen._add_schedule_btn.click()
     assert db.query_schedules() == []
+
+
+def test_settings_has_advisor_checkbox(qtbot):
+    screen = SettingsScreen(_all_present())
+    qtbot.addWidget(screen)
+    assert screen._advisor_enabled_cb is not None
+
+
+def test_settings_advisor_disabled_by_default(qtbot):
+    screen = SettingsScreen(_all_present())
+    qtbot.addWidget(screen)
+    assert not screen._advisor_enabled_cb.isChecked()
+
+
+def test_settings_api_key_disabled_when_advisor_off(qtbot):
+    screen = SettingsScreen(_all_present())
+    qtbot.addWidget(screen)
+    assert not screen._api_key_input.isEnabled()
+
+
+def test_settings_api_key_enabled_when_advisor_toggled_on(qtbot):
+    screen = SettingsScreen(_all_present(), db=_make_db())
+    qtbot.addWidget(screen)
+    screen._advisor_enabled_cb.setChecked(True)
+    assert screen._api_key_input.isEnabled()
+
+
+def test_settings_save_persists_advisor_enabled(qtbot):
+    db = _make_db()
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    screen._advisor_enabled_cb.setChecked(True)
+    screen._advisor_save_btn.click()
+    assert db.get_setting("ai_advisor_enabled") == "1"
+
+
+def test_settings_save_persists_api_key(qtbot):
+    db = _make_db()
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    screen._advisor_enabled_cb.setChecked(True)
+    screen._api_key_input.setText("my-gemini-key")
+    screen._advisor_save_btn.click()
+    assert db.get_setting("gemini_api_key") == "my-gemini-key"
+
+
+def test_settings_loads_saved_api_key(qtbot):
+    db = _make_db()
+    db.set_setting("ai_advisor_enabled", "1")
+    db.set_setting("gemini_api_key", "existing-key")
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    assert screen._advisor_enabled_cb.isChecked()
+    assert screen._api_key_input.text() == "existing-key"

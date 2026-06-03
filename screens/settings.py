@@ -1,7 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QFrame, QScrollArea, QComboBox,
+    QLineEdit, QPushButton, QFrame, QScrollArea, QComboBox, QCheckBox,
 )
 from datetime import datetime, timezone
 from models import Schedule
@@ -20,6 +20,9 @@ class SettingsScreen(QWidget):
         self._schedule_interval: QComboBox | None = None
         self._add_schedule_btn: QPushButton | None = None
         self._schedules_layout: QVBoxLayout | None = None
+        self._advisor_enabled_cb: QCheckBox | None = None
+        self._api_key_input: QLineEdit | None = None
+        self._advisor_save_btn: QPushButton | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -90,6 +93,7 @@ class SettingsScreen(QWidget):
         self._schedules_layout.setSpacing(4)
         layout.addWidget(sched_list)
         self._refresh_schedules()
+        self._build_advisor_section(layout)
 
     def _on_add_schedule(self):
         if not self._db:
@@ -122,6 +126,49 @@ class SettingsScreen(QWidget):
             )
             row.setStyleSheet("color: #cbd5e1; font-size: 11px;")
             self._schedules_layout.addWidget(row)
+
+    def _build_advisor_section(self, layout: QVBoxLayout) -> None:
+        advisor_label = QLabel("AI ADVISOR")
+        advisor_label.setStyleSheet("color: #64748b; font-size: 10px; letter-spacing: 1px;")
+        layout.addWidget(advisor_label)
+
+        self._advisor_enabled_cb = QCheckBox("Enable AI Advisor (Google Gemini)")
+        self._advisor_enabled_cb.setStyleSheet("color: #e2e8f0;")
+        enabled = self._db is not None and self._db.get_setting("ai_advisor_enabled") == "1"
+        self._advisor_enabled_cb.setChecked(enabled)
+        self._advisor_enabled_cb.toggled.connect(self._on_advisor_toggled)
+        layout.addWidget(self._advisor_enabled_cb)
+
+        self._api_key_input = QLineEdit()
+        self._api_key_input.setPlaceholderText("Gemini API key")
+        self._api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self._api_key_input.setEnabled(enabled)
+        if self._db:
+            saved_key = self._db.get_setting("gemini_api_key")
+            if saved_key:
+                self._api_key_input.setText(saved_key)
+        layout.addWidget(self._api_key_input)
+
+        save_row = QHBoxLayout()
+        self._advisor_save_btn = QPushButton("Save")
+        self._advisor_save_btn.setFixedWidth(80)
+        self._advisor_save_btn.clicked.connect(self._on_save_advisor_settings)
+        save_row.addWidget(self._advisor_save_btn)
+        save_row.addStretch()
+        layout.addLayout(save_row)
+
+    def _on_advisor_toggled(self, checked: bool) -> None:
+        if self._api_key_input:
+            self._api_key_input.setEnabled(checked)
+
+    def _on_save_advisor_settings(self) -> None:
+        if not self._db:
+            return
+        self._db.set_setting(
+            "ai_advisor_enabled",
+            "1" if self._advisor_enabled_cb.isChecked() else "0",
+        )
+        self._db.set_setting("gemini_api_key", self._api_key_input.text().strip())
 
     def _build_tool_row(self, tool: str, present: bool, is_critical: bool) -> QFrame:
         row = QFrame()

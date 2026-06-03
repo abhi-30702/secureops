@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
 from PyQt6.QtWidgets import (
     QScrollArea, QWidget, QVBoxLayout, QFrame, QLabel, QGraphicsOpacityEffect,
 )
@@ -111,17 +111,23 @@ class FindingCards(QScrollArea):
         self._cards.insert(0, card)
         self.verticalScrollBar().setValue(0)
 
+    def _delete_card(self, card: "_Card") -> None:
+        if hasattr(card, "_anim_h"):
+            card._anim_h.stop()
+        if hasattr(card, "_anim_o"):
+            card._anim_o.stop()
+        self._layout.removeWidget(card)
+        card.deleteLater()
+
     def reset(self):
         for card in self._cards:
-            self._layout.removeWidget(card)
-            card.deleteLater()
+            self._delete_card(card)
         self._cards.clear()
 
     def _trim_if_needed(self):
         if len(self._cards) >= _MAX_CARDS:
             oldest = self._cards.pop()
-            self._layout.removeWidget(oldest)
-            oldest.deleteLater()
+            self._delete_card(oldest)
 
     @property
     def card_count(self) -> int:

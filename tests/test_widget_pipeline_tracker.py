@@ -47,3 +47,12 @@ def test_pipeline_tracker_has_all_nine_nodes(qtbot):
     qtbot.addWidget(tracker)
     expected = {"subfinder", "dnsx", "naabu", "httpx", "katana", "nuclei", "nmap", "nikto", "testssl"}
     assert set(tracker._nodes.keys()) == expected
+
+
+def test_pipeline_tracker_reset_on_running_node_clears_animation(qtbot):
+    tracker = PipelineTracker()
+    qtbot.addWidget(tracker)
+    tracker.on_tool_started("httpx")
+    tracker.reset()
+    assert tracker._nodes["httpx"].state == "idle"
+    assert tracker._nodes["httpx"]._animation is None

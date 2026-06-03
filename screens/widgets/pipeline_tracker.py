@@ -47,6 +47,7 @@ class _ToolNode(QFrame):
 
     def set_running(self):
         self._state = "running"
+        self._stop_anim()
         self._dot.setStyleSheet(f"color: {_DOT_COLORS['running']}; font-size: 10px;")
         effect = QGraphicsOpacityEffect(self._dot)
         self._dot.setGraphicsEffect(effect)
@@ -138,7 +139,7 @@ class PipelineTracker(QWidget):
             self._nodes[name].set_failed()
 
     def on_scan_complete(self, hosts: int, findings: int):
-        pass
+        pass  # intentionally empty — totals summary deferred to Phase 4
 
     def reset(self):
         for node in self._nodes.values():

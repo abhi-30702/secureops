@@ -51,12 +51,14 @@ _SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
 
 class PdfGenerator:
     def __init__(self, scan: Scan, hosts: list[Host], findings: list[Finding],
-                 client: Client | None = None, output_path: str = "report.pdf"):
+                 client: Client | None = None, output_path: str = "report.pdf",
+                 advisory_items: list | None = None):
         self._scan = scan
         self._hosts = hosts
         self._findings = findings
         self._client = client
         self._output_path = output_path
+        self._advisory_items = advisory_items or []
         self._styles = getSampleStyleSheet()
         self._setup_styles()
 
@@ -110,6 +112,8 @@ class PdfGenerator:
         story += self._findings_section()
         story.append(PageBreak())
         story += self._iso_section()
+        if self._advisory_items:
+            story += self._advisory_section()
         story += self._host_appendix()
         doc.build(story, onFirstPage=self._page_header, onLaterPages=self._page_header)
         return self._output_path
@@ -287,6 +291,31 @@ class PdfGenerator:
         else:
             story.append(Paragraph("No findings to map.", self._body))
         story.append(Spacer(1, 0.5*cm))
+        return story
+
+    def _advisory_section(self) -> list:
+        story = [
+            PageBreak(),
+            Paragraph("AI Advisory", self._h1),
+            HRFlowable(width="100%", thickness=1, color=colors.HexColor("#e2e8f0")),
+            Paragraph(
+                "<i>AI-generated content — reviewed and accepted by consultant.</i>",
+                self._body,
+            ),
+            Spacer(1, 0.3 * cm),
+        ]
+        for tier, heading in (
+            ("immediate", "Immediate Actions"),
+            ("short_term", "Short-Term Actions"),
+            ("preventive", "Preventive Measures"),
+        ):
+            tier_items = [i for i in self._advisory_items if i.tier == tier]
+            if not tier_items:
+                continue
+            story.append(Paragraph(heading, self._h2))
+            for item in tier_items:
+                story.append(Paragraph(f"• {item.text}", self._body))
+            story.append(Spacer(1, 0.2 * cm))
         return story
 
     def _host_appendix(self) -> list:

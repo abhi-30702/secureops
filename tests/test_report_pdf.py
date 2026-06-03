@@ -1,5 +1,5 @@
 import os
-from models import Scan, Host, Finding
+from models import Scan, Host, Finding, AdvisoryItem
 from report.pdf_generator import PdfGenerator
 
 
@@ -86,3 +86,28 @@ def test_pdf_iso_mapping_default():
                        output_path="/dev/null")
     ctrl, _ = gen._iso_control("unknown_tool")
     assert ctrl == "A.12.6"
+
+
+def test_pdf_advisory_section_present_when_accepted_items(tmp_path):
+    items = [
+        AdvisoryItem(id=1, scan_id=1, tier="immediate",
+                     text="Patch OpenSSL", accepted=True,
+                     created_at="2026-06-03T10:00:00"),
+        AdvisoryItem(id=2, scan_id=1, tier="short_term",
+                     text="Review firewall rules", accepted=True,
+                     created_at="2026-06-03T10:00:00"),
+        AdvisoryItem(id=3, scan_id=1, tier="preventive",
+                     text="Enable dependency scanning", accepted=True,
+                     created_at="2026-06-03T10:00:00"),
+    ]
+    out = str(tmp_path / "report.pdf")
+    PdfGenerator(scan=_scan(), hosts=[], findings=[], output_path=out,
+                 advisory_items=items).generate()
+    assert os.path.exists(out)
+    assert os.path.getsize(out) > 0
+
+
+def test_pdf_no_advisory_section_when_no_items(tmp_path):
+    out = str(tmp_path / "report_no_advisory.pdf")
+    PdfGenerator(scan=_scan(), hosts=[], findings=[], output_path=out).generate()
+    assert os.path.exists(out)

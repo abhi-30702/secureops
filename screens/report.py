@@ -101,6 +101,10 @@ class ReportScreen(QWidget):
         self._content_layout.addWidget(self._build_summary(scan, hosts, findings))
         self._content_layout.addWidget(self._build_severity_panel(findings))
         self._content_layout.addWidget(self._build_findings_panel(findings))
+        if self._advisor_worker is not None:
+            self._advisor_worker.cancel()
+            self._advisor_worker.wait(500)
+            self._advisor_worker = None
         self._advisor_panel = None
         self._run_advisor_btn = None
         self._advisor_status = None
@@ -292,6 +296,18 @@ class ReportScreen(QWidget):
         if not api_key:
             if self._advisor_status:
                 self._advisor_status.setText("No API key — add one in Settings.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Send data to Gemini?",
+            "Scan findings (target, subdomains, ports, vulnerabilities) will be sent "
+            "to Google Gemini API to generate advisory recommendations.\n\n"
+            "This data will leave your machine. Do you want to proceed?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
             return
 
         self._db.delete_advisory_items_by_scan(self._scan_id)

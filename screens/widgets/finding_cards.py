@@ -34,11 +34,13 @@ class _Card(QFrame):
         top.setStyleSheet("color: #64748b; font-size: 10px;")
 
         title_label = QLabel(title)
+        title_label.setWordWrap(False)
         title_label.setStyleSheet(
             "color: #e2e8f0; font-size: 13px; font-weight: bold;"
         )
 
-        desc_label = QLabel((description or "")[:100])
+        desc_label = QLabel(description or "")
+        desc_label.setMaximumHeight(26)
         desc_label.setStyleSheet("color: #64748b; font-size: 11px;")
         desc_label.setWordWrap(True)
 

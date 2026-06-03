@@ -26,6 +26,11 @@ class ReportScreen(QWidget):
         self._scroll: QScrollArea | None = None
         self._content: QWidget | None = None
         self._content_layout: QVBoxLayout | None = None
+        self._advisor_panel: QFrame | None = None
+        self._run_advisor_btn: QPushButton | None = None
+        self._advisor_status: QLabel | None = None
+        self._tier_layouts: dict = {}
+        self._advisor_worker: object | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -96,6 +101,11 @@ class ReportScreen(QWidget):
         self._content_layout.addWidget(self._build_summary(scan, hosts, findings))
         self._content_layout.addWidget(self._build_severity_panel(findings))
         self._content_layout.addWidget(self._build_findings_panel(findings))
+        self._advisor_panel = None
+        self._run_advisor_btn = None
+        self._advisor_status = None
+        self._tier_layouts = {}
+        self._build_advisor_panel()
         self._content_layout.addStretch()
         self._export_btn.setEnabled(True)
 
@@ -221,6 +231,169 @@ class ReportScreen(QWidget):
 
         return panel
 
+    def _build_advisor_panel(self) -> None:
+        if not self._db:
+            return
+
+        panel = QFrame()
+        panel.setObjectName("panel")
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(16, 12, 16, 12)
+        panel_layout.setSpacing(8)
+        self._advisor_panel = panel
+
+        header_row = QHBoxLayout()
+        header = QLabel("AI Advisor")
+        header.setStyleSheet("font-size: 14px; font-weight: bold; color: #e2e8f0;")
+        header_row.addWidget(header)
+        header_row.addStretch()
+        panel_layout.addLayout(header_row)
+
+        enabled = self._db.get_setting("ai_advisor_enabled") == "1"
+        api_key = self._db.get_setting("gemini_api_key") or ""
+
+        if not enabled or not api_key:
+            info = QLabel("AI Advisor disabled — enable in Settings.")
+            info.setStyleSheet("color: #64748b; font-size: 11px;")
+            panel_layout.addWidget(info)
+            self._content_layout.addWidget(panel)
+            return
+
+        self._run_advisor_btn = QPushButton("Run Advisor")
+        self._run_advisor_btn.setFixedWidth(110)
+        self._run_advisor_btn.clicked.connect(self._on_run_advisor)
+        header_row.addWidget(self._run_advisor_btn)
+
+        self._advisor_status = QLabel("")
+        self._advisor_status.setStyleSheet("color: #64748b; font-size: 11px;")
+        panel_layout.addWidget(self._advisor_status)
+
+        for tier, label in (("immediate", "IMMEDIATE"), ("short_term", "SHORT-TERM"),
+                             ("preventive", "PREVENTIVE")):
+            sub_header = QLabel(label)
+            sub_header.setStyleSheet("color: #94a3b8; font-size: 10px; letter-spacing: 1px;")
+            sub_header.hide()
+            panel_layout.addWidget(sub_header)
+            tier_box = QVBoxLayout()
+            tier_box.setSpacing(4)
+            panel_layout.addLayout(tier_box)
+            self._tier_layouts[tier] = {"header": sub_header, "layout": tier_box}
+
+        disclaimer = QLabel("AI-generated — review before sending to client.")
+        disclaimer.setStyleSheet("color: #64748b; font-size: 10px; font-style: italic;")
+        panel_layout.addWidget(disclaimer)
+
+        self._content_layout.addWidget(panel)
+
+    def _on_run_advisor(self) -> None:
+        if not self._db or self._scan_id is None:
+            return
+        api_key = self._db.get_setting("gemini_api_key") or ""
+        if not api_key:
+            if self._advisor_status:
+                self._advisor_status.setText("No API key — add one in Settings.")
+            return
+
+        self._db.delete_advisory_items_by_scan(self._scan_id)
+        for tier_data in self._tier_layouts.values():
+            tier_data["header"].hide()
+            while tier_data["layout"].count():
+                item = tier_data["layout"].takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+
+        if self._run_advisor_btn:
+            self._run_advisor_btn.setText("Analyzing…")
+            self._run_advisor_btn.setEnabled(False)
+        if self._advisor_status:
+            self._advisor_status.setText("Contacting Gemini API…")
+
+        from advisor.worker import AdvisorWorker
+        self._advisor_worker = AdvisorWorker(
+            scan_id=self._scan_id, db=self._db, api_key=api_key,
+        )
+        self._advisor_worker.item_ready.connect(self._on_advisor_item_ready)
+        self._advisor_worker.finished.connect(self._on_advisor_finished)
+        self._advisor_worker.error.connect(self._on_advisor_error)
+        self._advisor_worker.start()
+
+    def _on_advisor_item_ready(self, item) -> None:
+        tier_data = self._tier_layouts.get(item.tier)
+        if tier_data is None:
+            return
+        tier_data["header"].show()
+        tier_data["layout"].addWidget(self._build_item_card(item))
+
+    def _on_advisor_finished(self) -> None:
+        if self._run_advisor_btn:
+            self._run_advisor_btn.setText("Run Advisor")
+            self._run_advisor_btn.setEnabled(True)
+        if self._advisor_status:
+            self._advisor_status.setText("Analysis complete.")
+
+    def _on_advisor_error(self, msg: str) -> None:
+        if self._run_advisor_btn:
+            self._run_advisor_btn.setText("Run Advisor")
+            self._run_advisor_btn.setEnabled(True)
+        if self._advisor_status:
+            self._advisor_status.setText(f"Error: {msg}")
+
+    def _build_item_card(self, item) -> QFrame:
+        card = QFrame()
+        card.setStyleSheet(
+            "QFrame { border-left: 3px solid #38bdf8;"
+            " background-color: #0f172a; border-radius: 3px; }"
+        )
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(10, 6, 10, 6)
+        card_layout.setSpacing(4)
+
+        text_lbl = QLabel(item.text)
+        text_lbl.setWordWrap(True)
+        text_lbl.setStyleSheet("color: #e2e8f0; font-size: 11px;")
+        card_layout.addWidget(text_lbl)
+
+        btn_row = QHBoxLayout()
+        accept_btn = QPushButton("✓ Accept")
+        accept_btn.setFixedWidth(80)
+        accept_btn.setStyleSheet(
+            "QPushButton { color: #00ff88; border: 1px solid #00ff88;"
+            " border-radius: 3px; padding: 2px 6px; font-size: 10px; }"
+            " QPushButton:hover { background-color: #00ff8820; }"
+        )
+        discard_btn = QPushButton("✗ Discard")
+        discard_btn.setFixedWidth(80)
+        discard_btn.setStyleSheet(
+            "QPushButton { color: #ff4444; border: 1px solid #ff4444;"
+            " border-radius: 3px; padding: 2px 6px; font-size: 10px; }"
+            " QPushButton:hover { background-color: #ff444420; }"
+        )
+        accept_btn.clicked.connect(
+            lambda: self._accept_item(item, card, accept_btn, discard_btn)
+        )
+        discard_btn.clicked.connect(lambda: self._discard_item(item, card))
+        btn_row.addWidget(accept_btn)
+        btn_row.addWidget(discard_btn)
+        btn_row.addStretch()
+        card_layout.addLayout(btn_row)
+        return card
+
+    def _accept_item(self, item, card: QFrame,
+                     accept_btn: QPushButton, discard_btn: QPushButton) -> None:
+        if self._db and item.id is not None:
+            self._db.update_advisory_item_accepted(item.id, True)
+        card.setStyleSheet(
+            "QFrame { border-left: 3px solid #00ff88;"
+            " background-color: #0a1628; border-radius: 3px; }"
+        )
+        accept_btn.setEnabled(False)
+        discard_btn.setEnabled(False)
+
+    def _discard_item(self, item, card: QFrame) -> None:
+        if self._db and item.id is not None:
+            self._db.update_advisory_item_accepted(item.id, False)
+        card.hide()
+
     def export_pdf(self):
         if not self._db or self._scan_id is None:
             return
@@ -237,15 +410,26 @@ class ReportScreen(QWidget):
         if not path:
             return
 
+        advisory_items = [
+            i for i in self._db.query_advisory_items_by_scan(self._scan_id)
+            if i.accepted
+        ]
         try:
             from report.pdf_generator import PdfGenerator
             PdfGenerator(scan=scan, hosts=hosts, findings=findings,
-                         output_path=path).generate()
+                         output_path=path, advisory_items=advisory_items).generate()
             QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
 
     def reset(self):
+        if self._advisor_worker is not None:
+            self._advisor_worker.cancel()
+            self._advisor_worker = None
         self._scan_id = None
+        self._advisor_panel = None
+        self._run_advisor_btn = None
+        self._advisor_status = None
+        self._tier_layouts = {}
         self._export_btn.setEnabled(False)
         self._show_placeholder()

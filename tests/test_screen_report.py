@@ -72,3 +72,42 @@ def test_report_has_scroll_area(qtbot):
     screen = ReportScreen()
     qtbot.addWidget(screen)
     assert screen._scroll is not None
+
+
+def test_report_advisor_panel_built_after_load(qtbot):
+    db, scan_id = _make_db()
+    screen = ReportScreen(db=db)
+    qtbot.addWidget(screen)
+    screen.load_scan(scan_id)
+    assert screen._advisor_panel is not None
+
+
+def test_report_advisor_shows_disabled_message_when_off(qtbot):
+    db, scan_id = _make_db()
+    screen = ReportScreen(db=db)
+    qtbot.addWidget(screen)
+    screen.load_scan(scan_id)
+    # advisor disabled (no setting saved) — run button should be absent
+    assert screen._run_advisor_btn is None
+
+
+def test_report_advisor_run_button_present_when_enabled(qtbot):
+    db, scan_id = _make_db()
+    db.set_setting("ai_advisor_enabled", "1")
+    db.set_setting("gemini_api_key", "test-key")
+    screen = ReportScreen(db=db)
+    qtbot.addWidget(screen)
+    screen.load_scan(scan_id)
+    assert screen._run_advisor_btn is not None
+    assert screen._run_advisor_btn.isEnabled()
+
+
+def test_report_reset_cancels_worker(qtbot):
+    db, scan_id = _make_db()
+    db.set_setting("ai_advisor_enabled", "1")
+    db.set_setting("gemini_api_key", "test-key")
+    screen = ReportScreen(db=db)
+    qtbot.addWidget(screen)
+    screen.load_scan(scan_id)
+    screen.reset()
+    assert screen._advisor_worker is None

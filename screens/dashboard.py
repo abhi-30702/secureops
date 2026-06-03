@@ -112,10 +112,11 @@ class DashboardScreen(QWidget):
     def refresh(self) -> None:
         if not self._db:
             return
-        n_clients = len(self._db.query_clients())
+        clients = self._db.query_clients()
+        n_clients = len(clients)
         null_scans = self._db.query_scans_by_client(None)
         client_scans = [
-            s for cl in self._db.query_clients()
+            s for cl in clients
             for s in self._db.query_scans_by_client(cl.id)
         ]
         n_scans = len(null_scans) + len(client_scans)

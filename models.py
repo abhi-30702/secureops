@@ -56,3 +56,13 @@ class Schedule:
     enabled: bool
     last_run: str | None
     created_at: str
+
+
+@dataclass
+class AdvisoryItem:
+    id: int | None
+    scan_id: int
+    tier: str          # "immediate" | "short_term" | "preventive"
+    text: str
+    accepted: bool
+    created_at: str

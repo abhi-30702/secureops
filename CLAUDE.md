@@ -34,7 +34,9 @@ SecureOps is a standalone PyQt6 desktop penetration-testing and security-audit a
 | Date | What was deferred | Context / notes |
 |------|-------------------|-----------------|
 | 2026-06-02 | ~~Phase 3 subagent-driven implementation~~ | Completed 2026-06-03. |
-| 2026-06-03 | Phases 6 & 7 implementation | Phase 6: AI Advisor agent (opt-in, consent, redaction, local-LLM alt). Phase 7: Packaging (.deb and .AppImage, bundled tools). Use superpowers:subagent-driven-development to execute each phase. |
+| 2026-06-03 | ~~Phases 6 & 7 implementation~~ | Phase 6 completed 2026-06-03. Phase 7 still pending. |
+| 2026-06-03 | AI Advisor: redaction option (FR-30) | Strip client-identifying details before sending to Gemini. Explicitly out-of-scope for Phase 6. |
+| 2026-06-03 | AI Advisor: local-LLM backend (FR-31) | Ollama support as offline alternative to Gemini. Explicitly out-of-scope for Phase 6. |
 
 ---
 

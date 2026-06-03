@@ -1,6 +1,6 @@
 import sqlite3
 import threading
-from models import Client, Scan, Host, Finding
+from models import Client, Scan, Host, Finding, Schedule
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS clients (
@@ -40,6 +40,14 @@ CREATE TABLE IF NOT EXISTS findings (
     title       TEXT NOT NULL,
     description TEXT,
     raw_json    TEXT,
+    created_at  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS schedules (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    target      TEXT NOT NULL UNIQUE,
+    interval_h  INTEGER NOT NULL DEFAULT 24,
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    last_run    TEXT,
     created_at  TEXT NOT NULL
 );
 """
@@ -118,3 +126,42 @@ class DB:
     def query_findings_by_scan(self, scan_id: int) -> list[Finding]:
         rows = self._conn.execute("SELECT * FROM findings WHERE scan_id=? ORDER BY id", (scan_id,)).fetchall()
         return [Finding(id=r["id"], scan_id=r["scan_id"], host_id=r["host_id"], tool=r["tool"], severity=r["severity"], title=r["title"], description=r["description"] or "", raw_json=r["raw_json"] or "", created_at=r["created_at"]) for r in rows]
+
+    def insert_schedule(self, schedule: Schedule) -> int:
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO schedules (target, interval_h, enabled, last_run, created_at) VALUES (?,?,?,?,?)",
+                (schedule.target, schedule.interval_h, 1 if schedule.enabled else 0,
+                 schedule.last_run, schedule.created_at),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def query_schedules(self) -> list[Schedule]:
+        rows = self._conn.execute("SELECT * FROM schedules ORDER BY id").fetchall()
+        return [Schedule(id=r["id"], target=r["target"], interval_h=r["interval_h"],
+                         enabled=bool(r["enabled"]), last_run=r["last_run"],
+                         created_at=r["created_at"]) for r in rows]
+
+    def update_schedule(self, schedule_id: int, enabled: bool,
+                        last_run: str | None) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE schedules SET enabled=?, last_run=? WHERE id=?",
+                (1 if enabled else 0, last_run, schedule_id),
+            )
+            self._conn.commit()
+
+    def delete_schedule(self, schedule_id: int) -> None:
+        with self._lock:
+            self._conn.execute("DELETE FROM schedules WHERE id=?", (schedule_id,))
+            self._conn.commit()
+
+    def query_recent_findings(self, limit: int = 20) -> list[Finding]:
+        rows = self._conn.execute(
+            "SELECT * FROM findings ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+        return [Finding(id=r["id"], scan_id=r["scan_id"], host_id=r["host_id"],
+                        tool=r["tool"], severity=r["severity"], title=r["title"],
+                        description=r["description"] or "", raw_json=r["raw_json"] or "",
+                        created_at=r["created_at"]) for r in rows]

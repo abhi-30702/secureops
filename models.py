@@ -46,3 +46,13 @@ class Finding:
     description: str
     raw_json: str
     created_at: str
+
+
+@dataclass
+class Schedule:
+    id: int | None
+    target: str
+    interval_h: int
+    enabled: bool
+    last_run: str | None
+    created_at: str

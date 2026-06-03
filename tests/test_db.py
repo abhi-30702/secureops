@@ -1,4 +1,4 @@
-from models import Client, Scan, Host, Finding
+from models import Client, Scan, Host, Finding, Schedule
 from db import DB
 
 
@@ -68,3 +68,43 @@ def test_query_scans_by_client(db):
     scans = db.query_scans_by_client(cid)
     assert len(scans) == 1
     assert scans[0].client_id == cid
+
+
+def test_insert_and_query_schedule(db):
+    s = Schedule(id=None, target="example.com", interval_h=24, enabled=True,
+                 last_run=None, created_at="2026-06-03T00:00:00")
+    sid = db.insert_schedule(s)
+    schedules = db.query_schedules()
+    assert len(schedules) == 1
+    assert schedules[0].target == "example.com"
+    assert schedules[0].id == sid
+
+
+def test_update_schedule(db):
+    s = Schedule(id=None, target="example.com", interval_h=24, enabled=True,
+                 last_run=None, created_at="2026-06-03T00:00:00")
+    sid = db.insert_schedule(s)
+    db.update_schedule(sid, enabled=False, last_run="2026-06-03T10:00:00")
+    schedules = db.query_schedules()
+    assert schedules[0].enabled is False
+    assert schedules[0].last_run == "2026-06-03T10:00:00"
+
+
+def test_delete_schedule(db):
+    s = Schedule(id=None, target="example.com", interval_h=24, enabled=True,
+                 last_run=None, created_at="2026-06-03T00:00:00")
+    sid = db.insert_schedule(s)
+    db.delete_schedule(sid)
+    assert db.query_schedules() == []
+
+
+def test_query_recent_findings_limit(db):
+    sid = db.insert_scan(Scan(id=None, client_id=None, target="t.com",
+                              status="complete", started_at="2026-06-03T10:00:00",
+                              finished_at=None))
+    for i in range(5):
+        db.insert_finding(Finding(id=None, scan_id=sid, host_id=None, tool="nuclei",
+                                  severity="high", title=f"Finding {i}", description="",
+                                  raw_json="{}", created_at=f"2026-06-03T10:0{i}:00"))
+    findings = db.query_recent_findings(limit=3)
+    assert len(findings) == 3

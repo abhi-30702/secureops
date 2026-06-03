@@ -68,20 +68,20 @@ def test_pdf_risk_rating_passed(tmp_path):
     assert gen._risk_rating() == "PASSED"
 
 
-def test_pdf_risk_rating_high(tmp_path):
+def test_pdf_risk_rating_high():
     gen = PdfGenerator(scan=_scan(), hosts=[], findings=[_finding("high")],
                        output_path="/dev/null")
     assert gen._risk_rating() == "HIGH"
 
 
-def test_pdf_iso_mapping_testssl(tmp_path):
+def test_pdf_iso_mapping_testssl():
     gen = PdfGenerator(scan=_scan(), hosts=[], findings=[],
                        output_path="/dev/null")
     ctrl, _ = gen._iso_control("testssl")
     assert ctrl == "A.10.1"
 
 
-def test_pdf_iso_mapping_default(tmp_path):
+def test_pdf_iso_mapping_default():
     gen = PdfGenerator(scan=_scan(), hosts=[], findings=[],
                        output_path="/dev/null")
     ctrl, _ = gen._iso_control("unknown_tool")

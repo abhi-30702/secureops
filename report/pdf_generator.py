@@ -8,7 +8,7 @@ from reportlab.platypus import (
     HRFlowable,
 )
 from reportlab.lib.enums import TA_CENTER
-from models import Scan, Host, Finding
+from models import Scan, Host, Finding, Client
 
 _SEVERITY_COLORS = {
     "critical": colors.HexColor("#ff4444"),
@@ -50,8 +50,8 @@ _SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
 
 
 class PdfGenerator:
-    def __init__(self, scan: Scan, hosts: list, findings: list,
-                 client=None, output_path: str = "report.pdf"):
+    def __init__(self, scan: Scan, hosts: list[Host], findings: list[Finding],
+                 client: Client | None = None, output_path: str = "report.pdf"):
         self._scan = scan
         self._hosts = hosts
         self._findings = findings
@@ -133,7 +133,7 @@ class PdfGenerator:
             Spacer(1, 1*cm),
             Paragraph(f"Target: {target_name}", self._cover_sub),
             Paragraph(f"Domain: {self._scan.target}", self._cover_sub),
-            Paragraph(f"Scan Date: {self._scan.started_at[:10]}", self._cover_sub),
+            Paragraph(f"Scan Date: {(self._scan.started_at or '')[:10]}", self._cover_sub),
             Spacer(1, 1.5*cm),
         ]
         badge_style = ParagraphStyle(
@@ -165,7 +165,7 @@ class PdfGenerator:
         total = sum(counts.values())
         rows = [
             ["Target", self._scan.target],
-            ["Scan Date", self._scan.started_at[:10]],
+            ["Scan Date", (self._scan.started_at or "")[:10]],
             ["Scan Duration", self._scan_duration()],
             ["Status", self._scan.status.capitalize()],
             ["Hosts Discovered", str(len(self._hosts))],
@@ -334,7 +334,8 @@ class PdfGenerator:
     def _severity_counts(self) -> dict[str, int]:
         counts: dict[str, int] = {}
         for f in self._findings:
-            counts[f.severity] = counts.get(f.severity, 0) + 1
+            sev = f.severity if f.severity in _SEVERITY_COLORS else "info"
+            counts[sev] = counts.get(sev, 0) + 1
         return counts
 
     def _scan_duration(self) -> str:
@@ -346,5 +347,5 @@ class PdfGenerator:
             delta = int((end - start).total_seconds())
             m, s = divmod(delta, 60)
             return f"{m}m {s}s"
-        except Exception:
+        except (ValueError, OverflowError, TypeError):
             return "—"

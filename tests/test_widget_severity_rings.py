@@ -52,3 +52,20 @@ def test_severity_rings_ignores_unknown_severity(qtbot):
     rings.add_finding(_finding("info"))
     total = sum(r.count for r in rings._rings.values())
     assert total == 0
+
+
+def test_severity_rings_medium_and_low_increment(qtbot):
+    rings = SeverityRings()
+    qtbot.addWidget(rings)
+    rings.add_finding(_finding("medium"))
+    rings.add_finding(_finding("low"))
+    assert rings._rings["medium"].count == 1
+    assert rings._rings["low"].count == 1
+
+
+def test_severity_rings_scan_complete_does_not_change_counts(qtbot):
+    rings = SeverityRings()
+    qtbot.addWidget(rings)
+    rings.add_finding(_finding("critical"))
+    rings.on_scan_complete(5, 1)
+    assert rings._rings["critical"].count == 1

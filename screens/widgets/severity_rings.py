@@ -35,7 +35,7 @@ class _RingWidget(QWidget):
         new_fill = self._count / max(self._count, 10)
         if self._animation:
             self._animation.stop()
-        self._animation = QPropertyAnimation(self, b"fill")
+        self._animation = QPropertyAnimation(self, b"fill", self)
         self._animation.setDuration(300)
         self._animation.setStartValue(self._fill)
         self._animation.setEndValue(new_fill)

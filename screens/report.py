@@ -73,12 +73,10 @@ class ReportScreen(QWidget):
                 item.widget().deleteLater()
 
     def _find_scan(self, scan_id: int):
-        # Search across all clients (and null-client scans)
         for client in self._db.query_clients():
             for s in self._db.query_scans_by_client(client.id):
                 if s.id == scan_id:
                     return s
-        # Also check scans with no client
         for s in self._db.query_scans_by_client(None):
             if s.id == scan_id:
                 return s

@@ -4,6 +4,8 @@ import tempfile
 import threading
 from typing import Iterator
 
+from tool_checker import _tool_path
+
 
 class ToolError(Exception):
     pass
@@ -27,9 +29,10 @@ class ToolRunner:
     def run(self, cmd: list[str], timeout: int = 300) -> Iterator[str]:
         if self._cancel.is_set():
             raise CancelledError()
+        resolved = [_tool_path(cmd[0]) or cmd[0]] + cmd[1:]
         try:
             proc = subprocess.Popen(
-                cmd,
+                resolved,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -53,9 +56,10 @@ class ToolRunner:
     def run_buffered(self, cmd: list[str], timeout: int = 300) -> str:
         if self._cancel.is_set():
             raise CancelledError()
+        resolved = [_tool_path(cmd[0]) or cmd[0]] + cmd[1:]
         try:
             result = subprocess.run(
-                cmd,
+                resolved,
                 capture_output=True,
                 text=True,
                 timeout=timeout,

@@ -73,3 +73,68 @@ def test_run_buffered_raises_tool_error_on_nonzero():
         import pytest
         with pytest.raises(ToolError):
             runner.run_buffered(["nmap", "-oX", "-"])
+
+
+def test_run_resolves_cmd0_through_tool_path(monkeypatch):
+    cancel = threading.Event()
+    runner = ToolRunner(cancel)
+    captured = {}
+
+    def fake_popen(cmd, **kwargs):
+        captured['cmd'] = cmd
+        mock_proc = MagicMock()
+        mock_proc.stdout = iter([])
+        mock_proc.returncode = 0
+        mock_proc.wait.return_value = None
+        return mock_proc
+
+    monkeypatch.setattr('workers.base_tool._tool_path',
+                        lambda name: f'/opt/secureops/tools/{name}',
+                        raising=False)
+    with patch('subprocess.Popen', fake_popen):
+        list(runner.run(['subfinder', '-d', 'example.com']))
+
+    assert captured['cmd'][0] == '/opt/secureops/tools/subfinder'
+    assert captured['cmd'][1:] == ['-d', 'example.com']
+
+
+def test_run_buffered_resolves_cmd0_through_tool_path(monkeypatch):
+    cancel = threading.Event()
+    runner = ToolRunner(cancel)
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured['cmd'] = cmd
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = ''
+        return mock_result
+
+    monkeypatch.setattr('workers.base_tool._tool_path',
+                        lambda name: f'/opt/secureops/tools/{name}',
+                        raising=False)
+    with patch('subprocess.run', fake_run):
+        runner.run_buffered(['nmap', '-sV', '10.0.0.1'])
+
+    assert captured['cmd'][0] == '/opt/secureops/tools/nmap'
+    assert captured['cmd'][1:] == ['-sV', '10.0.0.1']
+
+
+def test_run_falls_back_to_original_name_when_tool_path_returns_none(monkeypatch):
+    cancel = threading.Event()
+    runner = ToolRunner(cancel)
+    captured = {}
+
+    def fake_popen(cmd, **kwargs):
+        captured['cmd'] = cmd
+        mock_proc = MagicMock()
+        mock_proc.stdout = iter([])
+        mock_proc.returncode = 0
+        mock_proc.wait.return_value = None
+        return mock_proc
+
+    monkeypatch.setattr('workers.base_tool._tool_path', lambda name: None, raising=False)
+    with patch('subprocess.Popen', fake_popen):
+        list(runner.run(['subfinder', '-d', 'example.com']))
+
+    assert captured['cmd'][0] == 'subfinder'

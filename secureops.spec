@@ -19,6 +19,7 @@ a = Analysis(
         'reportlab.lib.pagesizes',
         'reportlab.lib.styles',
         'reportlab.lib.units',
+        'reportlab.lib.enums',
         'reportlab.platypus',
         'google.generativeai',
         'google.auth',

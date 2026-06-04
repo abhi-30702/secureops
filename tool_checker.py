@@ -1,4 +1,6 @@
 import shutil
+import sys
+from pathlib import Path
 
 TOOLS = [
     "subfinder", "dnsx", "naabu", "httpx", "katana",
@@ -8,8 +10,16 @@ TOOLS = [
 CRITICAL_TOOLS = {"subfinder", "nuclei", "nmap"}
 
 
+def _tool_path(name: str) -> str | None:
+    if getattr(sys, 'frozen', False):
+        bundled = Path(sys.executable).parent / "tools" / name
+        if bundled.is_file():
+            return str(bundled)
+    return shutil.which(name)
+
+
 def check_tools() -> dict:
-    return {tool: shutil.which(tool) is not None for tool in TOOLS}
+    return {tool: _tool_path(tool) is not None for tool in TOOLS}
 
 
 def is_critical_missing(results: dict) -> bool:

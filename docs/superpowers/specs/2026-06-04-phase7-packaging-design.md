@@ -161,7 +161,22 @@ def check_tools() -> dict:
     return {tool: _tool_path(tool) is not None for tool in TOOLS}
 ```
 
-**`workers/base_tool.py`** — update subprocess invocation to use `_tool_path()` instead of the bare tool name, so the bundled binary is actually executed (not just detected).
+**`workers/base_tool.py`** — resolve `cmd[0]` through `_tool_path()` at the top of `run()` and `run_buffered()`, so all 9 tool wrappers get bundled-path resolution without touching each file individually:
+
+```python
+from tool_checker import _tool_path
+
+class ToolRunner:
+    def run(self, cmd: list[str], timeout: int = 300) -> Iterator[str]:
+        resolved = [_tool_path(cmd[0]) or cmd[0]] + cmd[1:]
+        # ... rest of method uses resolved instead of cmd
+
+    def run_buffered(self, cmd: list[str], timeout: int = 300) -> str:
+        resolved = [_tool_path(cmd[0]) or cmd[0]] + cmd[1:]
+        # ... rest of method uses resolved instead of cmd
+```
+
+No changes needed to any individual tool file (subfinder.py, dnsx.py, etc.).
 
 ---
 

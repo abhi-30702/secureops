@@ -29,25 +29,31 @@ class LogAnalyzerWorker(QThread):
             self.scan_failed.emit(f"Log file not found: {self._path}")
             return
         except PermissionError:
-            self.scan_failed.emit(f"Cannot read log file: permission denied")
+            self.scan_failed.emit("Cannot read log file: permission denied")
             return
 
-        fmt = detect_format(lines)
-        self.log_line.emit(f"[log-analyzer] detected format: {fmt}")
+        try:
+            fmt = detect_format(lines)
+            self.log_line.emit(f"[log-analyzer] detected format: {fmt}")
 
-        findings = self._run_rules(lines, fmt)
-        self.log_line.emit(f"[log-analyzer] rules complete — {len(findings)} findings")
+            findings = self._run_rules(lines, fmt)
+            self.log_line.emit(f"[log-analyzer] rules complete — {len(findings)} findings")
 
-        findings = self._enrich_with_ai(findings)
+            findings = self._enrich_with_ai(findings)
 
-        for f in findings:
-            f.id = self._db.insert_finding(f)
-            self.finding_found.emit(f)
+            for f in findings:
+                f.id = self._db.insert_finding(f)
+                self.finding_found.emit(f)
 
-        self._db.update_scan_status(
-            self._scan_id, "complete", datetime.now(timezone.utc).isoformat()
-        )
-        self.scan_complete.emit(0, len(findings))
+            self._db.update_scan_status(
+                self._scan_id, "complete", datetime.now(timezone.utc).isoformat()
+            )
+            self.scan_complete.emit(0, len(findings))
+        except Exception as exc:
+            self._db.update_scan_status(
+                self._scan_id, "failed", datetime.now(timezone.utc).isoformat()
+            )
+            self.scan_failed.emit(f"Log analysis failed: {exc}")
 
     def _read_file(self) -> list[str]:
         with open(self._path, "r", errors="replace") as fh:
@@ -56,7 +62,7 @@ class LogAnalyzerWorker(QThread):
     def _run_rules(self, lines: list[str], fmt: str) -> list[Finding]:
         applicable = [
             r for r in RULES
-            if "*" in r.formats or fmt in r.formats or "unknown" in r.formats
+            if "*" in r.formats or fmt in r.formats or fmt == "unknown"
         ]
 
         count_rules = {"ssh_brute_force", "http_scan_rate", "repeated_block", "port_scan"}

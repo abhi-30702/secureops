@@ -81,3 +81,62 @@ def test_scan_worker_cancel_emits_scan_failed(qtbot, db):
             worker.start()
 
     assert any("cancel" in m.lower() for m in failed_msgs)
+
+
+from workers.scan_worker import _is_ip
+
+
+def test_is_ip_true_for_ipv4():
+    assert _is_ip("192.168.1.1") is True
+
+
+def test_is_ip_true_for_ipv6():
+    assert _is_ip("::1") is True
+    assert _is_ip("2001:db8::1") is True
+
+
+def test_is_ip_false_for_domain():
+    assert _is_ip("example.com") is False
+    assert _is_ip("scanme.nmap.org") is False
+    assert _is_ip("") is False
+
+
+def test_ip_mode_skips_subfinder_and_dnsx(qtbot, db):
+    worker, _ = _make_worker(db, target="10.0.0.1")
+    started_tools = []
+    worker.tool_started.connect(started_tools.append)
+
+    with patch("workers.scan_worker.naabu.run", return_value=[]):
+        with patch("workers.scan_worker.httpx.run", return_value=[]):
+            with patch("workers.scan_worker.katana.run", return_value=[]):
+                with patch("workers.scan_worker.nuclei.run", return_value=[]):
+                    with patch("workers.scan_worker.nmap.run", return_value=[]):
+                        with patch("workers.scan_worker.nikto.run", return_value=[]):
+                            with patch("workers.scan_worker.testssl.run", return_value=[]):
+                                with qtbot.waitSignal(worker.scan_complete, timeout=5000):
+                                    worker.start()
+
+    assert "subfinder" not in started_tools
+    assert "dnsx" not in started_tools
+    assert "naabu" in started_tools
+
+
+def test_ip_mode_feeds_ip_directly_to_naabu(qtbot, db):
+    worker, _ = _make_worker(db, target="10.0.0.1")
+    captured = {}
+
+    def fake_naabu(ips, runner, db, scan_id):
+        captured["ips"] = ips
+        return []
+
+    with patch("workers.scan_worker.naabu.run", side_effect=fake_naabu):
+        with patch("workers.scan_worker.httpx.run", return_value=[]):
+            with patch("workers.scan_worker.katana.run", return_value=[]):
+                with patch("workers.scan_worker.nuclei.run", return_value=[]):
+                    with patch("workers.scan_worker.nmap.run", return_value=[]):
+                        with patch("workers.scan_worker.nikto.run", return_value=[]):
+                            with patch("workers.scan_worker.testssl.run", return_value=[]):
+                                with qtbot.waitSignal(worker.scan_complete, timeout=5000):
+                                    worker.start()
+
+    assert captured["ips"] == ["10.0.0.1"]

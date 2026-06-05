@@ -1,3 +1,4 @@
+import ipaddress
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -6,6 +7,14 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from db import DB
 from workers.base_tool import ToolRunner, ToolError, CancelledError
 from workers.tools import subfinder, dnsx, naabu, httpx, katana, nuclei, nmap, nikto, testssl
+
+
+def _is_ip(target: str) -> bool:
+    try:
+        ipaddress.ip_address(target)
+        return True
+    except ValueError:
+        return False
 
 
 class ScanWorker(QThread):
@@ -64,11 +73,14 @@ class ScanWorker(QThread):
     def _execute_pipeline(self):
         runner = self._make_runner()
 
-        subdomains_hosts = self._run_tool("subfinder", subfinder.run, self._target, runner, self._db, self._scan_id)
-        subdomain_names = [h.subdomain for h in subdomains_hosts if h.subdomain]
+        if _is_ip(self._target):
+            ips = [self._target]
+        else:
+            subdomains_hosts = self._run_tool("subfinder", subfinder.run, self._target, runner, self._db, self._scan_id)
+            subdomain_names = [h.subdomain for h in subdomains_hosts if h.subdomain]
 
-        resolved_hosts = self._run_tool("dnsx", dnsx.run, subdomain_names, runner, self._db, self._scan_id)
-        ips = list({h.ip for h in resolved_hosts if h.ip})
+            resolved_hosts = self._run_tool("dnsx", dnsx.run, subdomain_names, runner, self._db, self._scan_id)
+            ips = list({h.ip for h in resolved_hosts if h.ip})
 
         port_hosts = self._run_tool("naabu", naabu.run, ips, runner, self._db, self._scan_id)
         host_ports = [f"{h.ip}:{h.port}" for h in port_hosts if h.ip and h.port]

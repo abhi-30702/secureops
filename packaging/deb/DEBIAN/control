@@ -5,7 +5,7 @@ Maintainer: Abhishek K <abhi30702@gmail.com>
 Depends: nmap, nikto, testssl.sh
 Section: net
 Priority: optional
-Description: SecureOps — penetration testing and security audit platform
+Description: SecureOps - penetration testing and security audit platform
  Orchestrates subfinder, dnsx, naabu, httpx, katana, nuclei, nmap,
  nikto, and testssl.sh through a single PyQt6 UI with live reporting
  and professional PDF export.

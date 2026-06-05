@@ -34,6 +34,7 @@ def test_deb_postinst_is_shell_script():
     content = Path('packaging/deb/DEBIAN/postinst').read_text()
     assert content.startswith('#!/bin/sh')
     assert 'chmod' in content
+    assert os.access(Path('packaging/deb/DEBIAN/postinst'), os.X_OK), "postinst must be executable"
 
 
 def test_apprun_is_shell_script_that_launches_secureops():
@@ -51,8 +52,10 @@ def test_desktop_file_has_required_fields():
 
 
 def test_icon_svg_exists_and_is_xml():
+    import xml.etree.ElementTree as ET
     content = Path('packaging/appimage/secureops.svg').read_text()
     assert '<svg' in content
+    ET.fromstring(content)  # raises ParseError if malformed
 
 
 def test_pyinstaller_spec_exists_and_is_valid_python():

@@ -109,9 +109,14 @@ class PdfGenerator:
         story += self._executive_summary()
         story.append(PageBreak())
         story += self._severity_breakdown()
-        story += self._findings_section()
+        net_findings = [f for f in self._findings if f.tool != "log-analyzer"]
+        log_findings = [f for f in self._findings if f.tool == "log-analyzer"]
+
+        story += self._findings_section(net_findings)
+        if log_findings:
+            story += self._log_section(log_findings)
         story.append(PageBreak())
-        story += self._iso_section()
+        story += self._iso_section(net_findings)
         if self._advisory_items:
             story += self._advisory_section()
         story += self._host_appendix()
@@ -225,19 +230,21 @@ class PdfGenerator:
         story.append(Spacer(1, 0.5*cm))
         return story
 
-    def _findings_section(self) -> list:
+    def _findings_section(self, findings: list | None = None) -> list:
+        if findings is None:
+            findings = self._findings
         story = [
             Paragraph("Findings", self._h1),
             HRFlowable(width="100%", thickness=1, color=colors.HexColor("#e2e8f0")),
         ]
         by_severity: dict[str, list] = {s: [] for s in _SEVERITY_ORDER}
-        for f in self._findings:
+        for f in findings:
             sev = f.severity if f.severity in by_severity else "info"
             by_severity[sev].append(f)
 
         for sev in _SEVERITY_ORDER:
-            findings = by_severity[sev]
-            if not findings:
+            sev_findings = by_severity[sev]
+            if not sev_findings:
                 continue
             sev_color = _SEVERITY_COLORS.get(sev, colors.grey)
             story.append(Paragraph(sev.upper(), ParagraphStyle(
@@ -245,7 +252,7 @@ class PdfGenerator:
                 fontName="Helvetica-Bold", spaceBefore=12, spaceAfter=4,
             )))
             story.append(HRFlowable(width="100%", thickness=1, color=sev_color))
-            for f in findings:
+            for f in sev_findings:
                 story.append(Paragraph(f.title, self._h3))
                 story.append(Paragraph(f"Tool: {f.tool}", self._muted))
                 if f.description:
@@ -255,18 +262,50 @@ class PdfGenerator:
                 ))
                 story.append(Spacer(1, 0.3*cm))
 
-        if not self._findings:
+        if not findings:
             story.append(Paragraph("No findings recorded for this scan.", self._body))
         return story
 
-    def _iso_section(self) -> list:
+    def _log_section(self, findings: list) -> list:
+        story = [
+            Paragraph("Log Analysis", self._h1),
+            HRFlowable(width="100%", thickness=1, color=colors.HexColor("#e2e8f0")),
+        ]
+        by_severity: dict[str, list] = {s: [] for s in _SEVERITY_ORDER}
+        for f in findings:
+            sev = f.severity if f.severity in by_severity else "info"
+            by_severity[sev].append(f)
+
+        for sev in _SEVERITY_ORDER:
+            sev_findings = by_severity[sev]
+            if not sev_findings:
+                continue
+            sev_color = _SEVERITY_COLORS.get(sev, colors.grey)
+            story.append(Paragraph(sev.upper(), ParagraphStyle(
+                f"LogSevHead_{sev}", fontSize=12, textColor=sev_color,
+                fontName="Helvetica-Bold", spaceBefore=12, spaceAfter=4,
+            )))
+            story.append(HRFlowable(width="100%", thickness=1, color=sev_color))
+            for f in sev_findings:
+                story.append(Paragraph(f.title, self._h3))
+                if f.description:
+                    story.append(Paragraph(f.description, self._body))
+                story.append(Spacer(1, 0.3*cm))
+
+        if not findings:
+            story.append(Paragraph("No log anomalies recorded.", self._body))
+        return story
+
+    def _iso_section(self, findings: list | None = None) -> list:
+        if findings is None:
+            findings = self._findings
         story = [
             Paragraph("ISO 27001 Control Gap Analysis", self._h1),
             HRFlowable(width="100%", thickness=1, color=colors.HexColor("#e2e8f0")),
             Spacer(1, 0.3*cm),
         ]
         seen: dict[str, tuple] = {}
-        for f in self._findings:
+        for f in findings:
             ctrl, title = self._iso_control(f.tool)
             if ctrl not in seen:
                 seen[ctrl] = (ctrl, title, f.tool)

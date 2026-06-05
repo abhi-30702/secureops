@@ -3,6 +3,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QSplitter, QPlainTextEdit,
+    QFileDialog,
 )
 from screens.widgets.pipeline_tracker import PipelineTracker
 from screens.widgets.attack_graph import AttackGraph
@@ -16,9 +17,14 @@ class ScanViewScreen(QWidget):
     def __init__(self, db=None, parent=None):
         super().__init__(parent)
         self._db = db
+        self._mode = "scan"
         self._target_input: QLineEdit | None = None
+        self._scan_mode_btn: QPushButton | None = None
+        self._log_mode_btn: QPushButton | None = None
+        self._browse_btn: QPushButton | None = None
         self._start_btn: QPushButton | None = None
         self._status_label: QLabel | None = None
+        self._log_status_label: QLabel | None = None
         self._pipeline_panel: PipelineTracker | None = None
         self._attack_graph_panel: AttackGraph | None = None
         self._severity_panel: SeverityRings | None = None
@@ -34,19 +40,49 @@ class ScanViewScreen(QWidget):
         layout.setSpacing(8)
 
         top_bar = QHBoxLayout()
+
+        self._scan_mode_btn = QPushButton("Scan Target")
+        self._scan_mode_btn.setCheckable(True)
+        self._scan_mode_btn.setChecked(True)
+        self._scan_mode_btn.setProperty("active", "true")
+        self._scan_mode_btn.setFixedWidth(110)
+        self._scan_mode_btn.clicked.connect(lambda: self._set_mode("scan"))
+
+        self._log_mode_btn = QPushButton("Analyse Logs")
+        self._log_mode_btn.setCheckable(True)
+        self._log_mode_btn.setChecked(False)
+        self._log_mode_btn.setProperty("active", "false")
+        self._log_mode_btn.setFixedWidth(110)
+        self._log_mode_btn.clicked.connect(lambda: self._set_mode("logs"))
+
         self._target_input = QLineEdit()
         self._target_input.setPlaceholderText("Target domain or IP (e.g. example.com)")
+
+        self._browse_btn = QPushButton("Browse")
+        self._browse_btn.setFixedWidth(72)
+        self._browse_btn.setVisible(False)
+        self._browse_btn.clicked.connect(self._on_browse)
+
         self._start_btn = QPushButton("▶  Start Scan")
         self._start_btn.setEnabled(self._db is not None)
         self._start_btn.setToolTip("Enter a target and click to scan" if self._db else "DB not initialised")
         self._start_btn.clicked.connect(self._on_start_cancel)
+
+        top_bar.addWidget(self._scan_mode_btn)
+        top_bar.addWidget(self._log_mode_btn)
         top_bar.addWidget(self._target_input, stretch=1)
+        top_bar.addWidget(self._browse_btn)
         top_bar.addWidget(self._start_btn)
         layout.addLayout(top_bar)
 
         self._status_label = QLabel("Ready")
         self._status_label.setStyleSheet("color: #64748b; font-size: 11px;")
         layout.addWidget(self._status_label)
+
+        self._log_status_label = QLabel("")
+        self._log_status_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        self._log_status_label.setVisible(False)
+        layout.addWidget(self._log_status_label)
 
         self._pipeline_panel = PipelineTracker()
         self._attack_graph_panel = AttackGraph()
@@ -85,20 +121,49 @@ class ScanViewScreen(QWidget):
 
         layout.addWidget(main_splitter, stretch=1)
 
+    def _set_mode(self, mode: str):
+        self._mode = mode
+        is_scan = mode == "scan"
+        self._scan_mode_btn.setProperty("active", "true" if is_scan else "false")
+        self._log_mode_btn.setProperty("active", "false" if is_scan else "true")
+        self._scan_mode_btn.style().unpolish(self._scan_mode_btn)
+        self._scan_mode_btn.style().polish(self._scan_mode_btn)
+        self._log_mode_btn.style().unpolish(self._log_mode_btn)
+        self._log_mode_btn.style().polish(self._log_mode_btn)
+        self._target_input.setText("")
+        self._target_input.setPlaceholderText(
+            "Target domain or IP (e.g. example.com)" if is_scan
+            else "Path to log file (e.g. /var/log/auth.log)"
+        )
+        self._browse_btn.setVisible(not is_scan)
+        self._pipeline_panel.setVisible(is_scan)
+        self._log_status_label.setVisible(not is_scan)
+        self._start_btn.setText("▶  Start Scan" if is_scan else "▶  Analyse")
+
+    def _on_browse(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select log file", "/var/log",
+            "Log files (*.log *.txt *);;All files (*)"
+        )
+        if path:
+            self._target_input.setText(path)
+
     def _on_start_cancel(self):
         if self._worker and self._worker.isRunning():
-            self._worker.cancel()
+            if hasattr(self._worker, "cancel"):
+                self._worker.cancel()
             self._start_btn.setEnabled(False)
             self._start_btn.setText("Cancelling…")
             return
 
         target = self._target_input.text().strip()
         if not target:
-            self._status_label.setText("Enter a target first.")
+            self._status_label.setText(
+                "Enter a target first." if self._mode == "scan" else "Select a log file first."
+            )
             return
 
         from models import Scan
-        from workers.scan_worker import ScanWorker
 
         scan = Scan(
             id=None,
@@ -110,41 +175,44 @@ class ScanViewScreen(QWidget):
         )
         self._scan_id = self._db.insert_scan(scan)
 
-        self._pipeline_panel.reset()
-        self._attack_graph_panel.reset()
         self._severity_panel.reset()
         self._finding_cards_panel.reset()
+        self._terminal_panel.clear()
 
         if self._worker is not None:
             self._worker.deleteLater()
             self._worker = None
 
-        self._worker = ScanWorker(target=target, scan_id=self._scan_id, db=self._db)
-
-        self._worker.tool_started.connect(self._pipeline_panel.on_tool_started)
-        self._worker.tool_finished.connect(self._pipeline_panel.on_tool_finished)
-        self._worker.tool_failed.connect(self._pipeline_panel.on_tool_failed)
-        self._worker.scan_complete.connect(self._pipeline_panel.on_scan_complete)
-
-        self._worker.host_found.connect(self._attack_graph_panel.add_host)
-        self._worker.finding_found.connect(self._attack_graph_panel.add_finding)
-        self._worker.scan_complete.connect(self._attack_graph_panel.on_scan_complete)
+        if self._mode == "scan":
+            from workers.scan_worker import ScanWorker
+            self._pipeline_panel.reset()
+            self._attack_graph_panel.reset()
+            self._worker = ScanWorker(target=target, scan_id=self._scan_id, db=self._db)
+            self._worker.tool_started.connect(self._pipeline_panel.on_tool_started)
+            self._worker.tool_finished.connect(self._pipeline_panel.on_tool_finished)
+            self._worker.tool_failed.connect(self._pipeline_panel.on_tool_failed)
+            self._worker.scan_complete.connect(self._pipeline_panel.on_scan_complete)
+            self._worker.host_found.connect(self._attack_graph_panel.add_host)
+            self._worker.finding_found.connect(self._attack_graph_panel.add_finding)
+            self._worker.scan_complete.connect(self._attack_graph_panel.on_scan_complete)
+            self._worker.tool_started.connect(self._on_tool_started)
+            self._worker.tool_finished.connect(self._on_tool_finished)
+            self._worker.tool_failed.connect(self._on_tool_failed_log)
+        else:
+            from workers.log_analyzer import LogAnalyzerWorker
+            self._log_status_label.setText("Detecting format…")
+            self._worker = LogAnalyzerWorker(path=target, scan_id=self._scan_id, db=self._db)
+            self._worker.log_line.connect(self._on_log_status_update)
 
         self._worker.finding_found.connect(self._severity_panel.add_finding)
         self._worker.scan_complete.connect(self._severity_panel.on_scan_complete)
-
         self._worker.finding_found.connect(self._finding_cards_panel.add_finding)
         self._worker.scan_complete.connect(self._finding_cards_panel.on_scan_complete)
-
-        self._worker.tool_started.connect(self._on_tool_started)
-        self._worker.tool_finished.connect(self._on_tool_finished)
-        self._worker.tool_failed.connect(self._on_tool_failed_log)
         self._worker.log_line.connect(self._log)
         self._worker.scan_complete.connect(self._on_scan_complete)
         self._worker.scan_failed.connect(self._on_scan_failed)
 
         self._start_btn.setText("■  Cancel")
-        self._terminal_panel.clear()
         self._worker.start()
 
     def _log(self, line: str):
@@ -158,6 +226,12 @@ class ScanViewScreen(QWidget):
 
     def _on_tool_failed_log(self, name: str, msg: str):
         self._log(f"[FAILED] {name}: {msg}")
+
+    def _on_log_status_update(self, line: str):
+        if "detected format" in line:
+            self._log_status_label.setText("Running rules…")
+        elif "rules complete" in line:
+            self._log_status_label.setText("Enriching with AI Advisor…")
 
     def _on_scan_complete(self, hosts: int, findings: int):
         self._status_label.setText(f"Complete — {hosts} hosts, {findings} findings")

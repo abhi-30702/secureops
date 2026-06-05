@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=SecureOps
+Comment=Penetration testing and security audit platform
+Exec=secureops
+Icon=secureops
+Type=Application
+Categories=Network;Security;
+StartupNotify=true

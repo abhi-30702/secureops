@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+chmod +x /opt/secureops/secureops
+find /opt/secureops/tools -type f -exec chmod +x {} \;
+chmod +x /usr/local/bin/secureops

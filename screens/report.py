@@ -98,9 +98,14 @@ class ReportScreen(QWidget):
         findings = self._db.query_findings_by_scan(scan_id)
 
         self._clear_content()
+        net_findings = [f for f in findings if f.tool != "log-analyzer"]
+        log_findings = [f for f in findings if f.tool == "log-analyzer"]
+
         self._content_layout.addWidget(self._build_summary(scan, hosts, findings))
         self._content_layout.addWidget(self._build_severity_panel(findings))
-        self._content_layout.addWidget(self._build_findings_panel(findings))
+        self._content_layout.addWidget(self._build_findings_panel(net_findings))
+        if log_findings:
+            self._content_layout.addWidget(self._build_log_panel(log_findings))
         if self._advisor_worker is not None:
             self._advisor_worker.cancel()
             self._advisor_worker.wait(500)
@@ -226,6 +231,52 @@ class ReportScreen(QWidget):
                 tool_lbl.setStyleSheet("color: #64748b; font-size: 10px;")
                 card_layout.addWidget(title_lbl)
                 card_layout.addWidget(tool_lbl)
+                if f.description:
+                    desc_lbl = QLabel(f.description[:200])
+                    desc_lbl.setWordWrap(True)
+                    desc_lbl.setStyleSheet("color: #94a3b8; font-size: 10px;")
+                    card_layout.addWidget(desc_lbl)
+                layout.addWidget(card)
+
+        return panel
+
+    def _build_log_panel(self, findings) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("panel")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(8)
+
+        header = QLabel("Log Analysis Findings")
+        header.setStyleSheet("font-size: 14px; font-weight: bold; color: #e2e8f0;")
+        layout.addWidget(header)
+
+        by_sev: dict[str, list] = {s: [] for s in _SEVERITY_ORDER}
+        for f in findings:
+            sev = f.severity if f.severity in by_sev else "info"
+            by_sev[sev].append(f)
+
+        for sev in _SEVERITY_ORDER:
+            if not by_sev[sev]:
+                continue
+            color = _SEVERITY_COLORS.get(sev, "#64748b")
+            sev_label = QLabel(
+                f'<span style="color:{color}; font-weight:bold;">{sev.upper()} ({len(by_sev[sev])})</span>'
+            )
+            sev_label.setStyleSheet("font-size: 12px;")
+            layout.addWidget(sev_label)
+            for f in by_sev[sev]:
+                card = QFrame()
+                card.setStyleSheet(
+                    f"QFrame {{ border-left: 3px solid {color}; "
+                    f"background-color: #0f172a; border-radius: 3px; }}"
+                )
+                card_layout = QVBoxLayout(card)
+                card_layout.setContentsMargins(10, 6, 10, 6)
+                card_layout.setSpacing(2)
+                title_lbl = QLabel(f.title)
+                title_lbl.setStyleSheet("color: #e2e8f0; font-size: 12px; font-weight: bold;")
+                card_layout.addWidget(title_lbl)
                 if f.description:
                     desc_lbl = QLabel(f.description[:200])
                     desc_lbl.setWordWrap(True)

@@ -1,0 +1,14 @@
+# Build output
+dist/
+*.deb
+*.AppImage
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Virtual environment
+venv/

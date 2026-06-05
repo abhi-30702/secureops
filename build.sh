@@ -6,6 +6,7 @@ cd "$SCRIPT_DIR"
 
 # Read version from app.py (single source of truth)
 VERSION=$(sed -n 's/.*setApplicationVersion("\([^"]*\)").*/\1/p' app.py)
+[ -n "$VERSION" ] || { echo "ERROR: Could not extract version from app.py"; exit 1; }
 echo "Building SecureOps v${VERSION}..."
 
 # Load pinned tool versions
@@ -47,6 +48,7 @@ done
 echo ""
 echo "=== Stage 2: Building Python bundle ==="
 
+[ -d venv ] || { echo "ERROR: venv/ not found. Run: python3 -m venv venv && pip install -r requirements.txt"; exit 1; }
 source venv/bin/activate
 pip install -q -r requirements.txt
 pip install -q "pyinstaller>=6.0"
@@ -112,10 +114,12 @@ if [ ! -f dist/appimagetool ]; then
 fi
 
 rm -rf dist/AppDir
+mkdir -p dist/AppDir/usr/lib/secureops
 mkdir -p dist/AppDir/usr/bin
 
 # App files (same PyInstaller output)
-cp -r dist/secureops/. dist/AppDir/usr/bin/
+cp -r dist/secureops/. dist/AppDir/usr/lib/secureops/
+ln -s ../lib/secureops/secureops dist/AppDir/usr/bin/secureops
 
 # AppImage structure
 cp packaging/appimage/AppRun dist/AppDir/AppRun

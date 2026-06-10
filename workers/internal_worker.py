@@ -48,4 +48,52 @@ class InternalWorker(QThread):
         self._cancel_event.set()
 
     def run(self):
-        pass  # stage 1 and 2 added in later tasks
+        runner = ToolRunner(self._cancel_event)
+        try:
+            live_ips = self._stage1_ping_sweep(runner)
+        except CancelledError:
+            self._db.update_scan_status(self._scan_id, "cancelled", datetime.now(timezone.utc).isoformat())
+            return
+        if live_ips is None:
+            self._db.update_scan_status(self._scan_id, "failed", datetime.now(timezone.utc).isoformat())
+            return
+        if not live_ips:
+            self._db.update_scan_status(self._scan_id, "complete", datetime.now(timezone.utc).isoformat())
+            self.scan_complete.emit(0, 0)
+            return
+        # Stage 2 added in Task 3
+        self._db.update_scan_status(self._scan_id, "complete", datetime.now(timezone.utc).isoformat())
+        self.scan_complete.emit(len(live_ips), 0)
+
+    def _stage1_ping_sweep(self, runner: ToolRunner) -> list[str] | None:
+        self.log_line.emit("[internal] Stage 1 — ping sweep")
+        try:
+            xml_out = runner.run_buffered(
+                ["nmap", "-sn", "-T4", "-oX", "-"] + self._subnets,
+                timeout=300,
+            )
+        except CancelledError:
+            raise
+        except ToolError as exc:
+            self.scan_failed.emit(f"nmap not found or failed: {exc}")
+            return None
+
+        try:
+            root = ET.fromstring(xml_out)
+        except ET.ParseError:
+            self.log_line.emit("[internal] ping sweep: failed to parse nmap XML")
+            return []
+
+        live = []
+        for host_el in root.findall("host"):
+            status = host_el.find("status")
+            if status is None or status.get("state") != "up":
+                continue
+            addr = host_el.find("address[@addrtype='ipv4']")
+            if addr is not None:
+                ip = addr.get("addr")
+                live.append(ip)
+                self.log_line.emit(f"[internal] live: {ip}")
+
+        self.log_line.emit(f"[internal] Stage 1 complete — {len(live)} live hosts")
+        return live

@@ -71,6 +71,10 @@ class InternalWorker(QThread):
         except CancelledError:
             self._db.update_scan_status(self._scan_id, "cancelled", datetime.now(timezone.utc).isoformat())
             return
+        except Exception as exc:
+            self._db.update_scan_status(self._scan_id, "failed", datetime.now(timezone.utc).isoformat())
+            self.scan_failed.emit(f"Internal scan error: {exc}")
+            return
 
         self._db.update_scan_status(self._scan_id, "complete", datetime.now(timezone.utc).isoformat())
         self.scan_complete.emit(len(live_ips), findings_count)
@@ -143,7 +147,11 @@ class InternalWorker(QThread):
                     state_el = port_el.find("state")
                     if state_el is None or state_el.get("state") != "open":
                         continue
-                    portid = int(port_el.get("portid", 0))
+                    try:
+                        portid = int(port_el.get("portid", 0))
+                    except ValueError:
+                        self.log_line.emit(f"[internal] skipping port with non-integer portid: {port_el.get('portid')}")
+                        continue
                     open_ports.append(portid)
                     svc_el = port_el.find("service")
                     svc_name = svc_el.get("name", "") if svc_el is not None else ""

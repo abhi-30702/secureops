@@ -8,6 +8,7 @@ from screens.client_onboarding import ClientOnboardingScreen
 from screens.scan_view import ScanViewScreen
 from screens.report import ReportScreen
 from screens.settings import SettingsScreen
+from screens.internal_page import InternalPage
 from db import DB
 
 
@@ -51,6 +52,9 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(self._scan_view)                            # 2
         self._stack.addWidget(self._report)                               # 3
         self._stack.addWidget(SettingsScreen(self._tool_results, db=self._db))  # 4
+        self._internal = InternalPage(db=self._db)
+        self._stack.addWidget(self._internal)                                   # 5
+        self._internal.scan_ready.connect(self._on_scan_ready)
 
         row_layout.addWidget(self._sidebar)
         row_layout.addWidget(self._stack, stretch=1)

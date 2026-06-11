@@ -10,6 +10,7 @@ _NAV_ITEMS = [
     ("⚡", "Scan", 2),
     ("📄", "Report", 3),
     ("⚙", "Settings", 4),
+    ("⬡", "Internal", 5),
 ]
 
 

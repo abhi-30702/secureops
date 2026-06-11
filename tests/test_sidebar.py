@@ -6,7 +6,7 @@ from sidebar import Sidebar, COLLAPSED_WIDTH, EXPANDED_WIDTH
 def test_sidebar_has_five_nav_buttons(qtbot):
     sidebar = Sidebar()
     qtbot.addWidget(sidebar)
-    assert len(sidebar._buttons) == 5
+    assert len(sidebar._buttons) == 6
 
 
 def test_sidebar_starts_collapsed(qtbot):

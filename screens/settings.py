@@ -20,6 +20,7 @@ class SettingsScreen(QWidget):
         self._schedule_interval: QComboBox | None = None
         self._add_schedule_btn: QPushButton | None = None
         self._schedules_layout: QVBoxLayout | None = None
+        self._subnet_input: QLineEdit | None = None
         self._advisor_enabled_cb: QCheckBox | None = None
         self._api_key_input: QLineEdit | None = None
         self._advisor_save_btn: QPushButton | None = None
@@ -93,6 +94,7 @@ class SettingsScreen(QWidget):
         self._schedules_layout.setSpacing(4)
         layout.addWidget(sched_list)
         self._refresh_schedules()
+        self._build_subnet_section(layout)
         self._build_advisor_section(layout)
 
     def _on_add_schedule(self):
@@ -169,6 +171,32 @@ class SettingsScreen(QWidget):
             "1" if self._advisor_enabled_cb.isChecked() else "0",
         )
         self._db.set_setting("gemini_api_key", self._api_key_input.text().strip())
+
+    def _build_subnet_section(self, layout: QVBoxLayout) -> None:
+        subnet_label = QLabel("INTERNAL SUBNET RANGES")
+        subnet_label.setStyleSheet("color: #64748b; font-size: 10px; letter-spacing: 1px;")
+        layout.addWidget(subnet_label)
+
+        self._subnet_input = QLineEdit()
+        self._subnet_input.setPlaceholderText("192.168.1.0/24, 10.0.0.0/24")
+        if self._db:
+            saved = self._db.get_setting("internal_subnets")
+            if saved:
+                self._subnet_input.setText(saved)
+        layout.addWidget(self._subnet_input)
+
+        save_subnet_row = QHBoxLayout()
+        save_subnet_btn = QPushButton("Save")
+        save_subnet_btn.setFixedWidth(80)
+        save_subnet_btn.clicked.connect(self._on_save_subnets)
+        save_subnet_row.addWidget(save_subnet_btn)
+        save_subnet_row.addStretch()
+        layout.addLayout(save_subnet_row)
+
+    def _on_save_subnets(self) -> None:
+        if not self._db or not self._subnet_input:
+            return
+        self._db.set_setting("internal_subnets", self._subnet_input.text().strip())
 
     def _build_tool_row(self, tool: str, present: bool, is_critical: bool) -> QFrame:
         row = QFrame()

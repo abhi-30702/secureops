@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 import pyqtgraph as pg
 
@@ -38,6 +39,10 @@ class TopologyGraph(QWidget):
         self._nodes: list[tuple[str, str, str]] = []
         # _edges: list of (from_idx, to_idx)
         self._edges: list[tuple[int, int]] = []
+        self._redraw_timer = QTimer(self)
+        self._redraw_timer.setSingleShot(True)
+        self._redraw_timer.setInterval(100)
+        self._redraw_timer.timeout.connect(self._redraw)
         self._setup_ui()
 
     def _setup_ui(self):
@@ -64,7 +69,8 @@ class TopologyGraph(QWidget):
         self._subnets.clear()
         self._nodes.clear()
         self._edges.clear()
-        self._redraw()
+        if hasattr(self, "_graph_item"):
+            self._redraw()
 
     def _record_host(self, ip: str, device_type: str, ports: list[int]):
         """Update internal data structures. Called by add_host."""
@@ -84,7 +90,7 @@ class TopologyGraph(QWidget):
 
     def add_host(self, ip: str, device_type: str, ports: list[int]):
         self._record_host(ip, device_type, ports)
-        self._redraw()
+        self._redraw_timer.start()
 
     def _compute_positions(self) -> list[list[float]]:
         """Compute x,y for every node geometrically (subnet ring + device orbits)."""

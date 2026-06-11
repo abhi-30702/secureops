@@ -54,6 +54,10 @@ class InternalWorker(QThread):
         except CancelledError:
             self._db.update_scan_status(self._scan_id, "cancelled", datetime.now(timezone.utc).isoformat())
             return
+        except Exception as exc:
+            self._db.update_scan_status(self._scan_id, "failed", datetime.now(timezone.utc).isoformat())
+            self.scan_failed.emit(f"Internal scan error: {exc}")
+            return
         if live_ips is None:
             self._db.update_scan_status(self._scan_id, "failed", datetime.now(timezone.utc).isoformat())
             return
@@ -92,8 +96,9 @@ class InternalWorker(QThread):
             addr = host_el.find("address[@addrtype='ipv4']")
             if addr is not None:
                 ip = addr.get("addr")
-                live.append(ip)
-                self.log_line.emit(f"[internal] live: {ip}")
+                if ip:
+                    live.append(ip)
+                    self.log_line.emit(f"[internal] live: {ip}")
 
         self.log_line.emit(f"[internal] Stage 1 complete — {len(live)} live hosts")
         return live

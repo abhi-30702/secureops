@@ -1,6 +1,6 @@
 import textwrap
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock
 import pytest
 
 from workers.internal_worker import InternalWorker, _classify_device
@@ -85,15 +85,17 @@ _PING_XML_ZERO_HOSTS = textwrap.dedent("""\
 
 def test_stage1_returns_live_ips(qtbot):
     worker, _ = _make_worker()
-    with patch("workers.internal_worker.ToolRunner.run_buffered", return_value=_PING_XML_ONE_HOST):
-        live = worker._stage1_ping_sweep(ToolRunner(worker._cancel_event))
+    mock_runner = MagicMock()
+    mock_runner.run_buffered.return_value = _PING_XML_ONE_HOST
+    live = worker._stage1_ping_sweep(mock_runner)
     assert live == ["192.168.1.10"]
 
 
 def test_stage1_zero_hosts_returns_empty_list(qtbot):
     worker, _ = _make_worker()
-    with patch("workers.internal_worker.ToolRunner.run_buffered", return_value=_PING_XML_ZERO_HOSTS):
-        live = worker._stage1_ping_sweep(ToolRunner(worker._cancel_event))
+    mock_runner = MagicMock()
+    mock_runner.run_buffered.return_value = _PING_XML_ZERO_HOSTS
+    live = worker._stage1_ping_sweep(mock_runner)
     assert live == []
 
 
@@ -101,7 +103,8 @@ def test_stage1_tool_error_emits_scan_failed(qtbot):
     worker, _ = _make_worker()
     failed = []
     worker.scan_failed.connect(failed.append)
-    with patch("workers.internal_worker.ToolRunner.run_buffered", side_effect=ToolError("nmap: not found")):
-        live = worker._stage1_ping_sweep(ToolRunner(worker._cancel_event))
+    mock_runner = MagicMock()
+    mock_runner.run_buffered.side_effect = ToolError("nmap: not found")
+    live = worker._stage1_ping_sweep(mock_runner)
     assert live is None
     assert any("nmap" in m for m in failed)

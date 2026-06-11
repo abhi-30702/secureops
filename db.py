@@ -173,9 +173,10 @@ class DB:
             ).fetchall()
         return [
             {
-                "id": r[0], "scan_id": r[1], "timestamp": r[2],
-                "event_type": r[3], "source_host": r[4],
-                "dest_host": r[5], "description": r[6], "evidence": r[7],
+                "id": r["id"], "scan_id": r["scan_id"], "timestamp": r["timestamp"],
+                "event_type": r["event_type"], "source_host": r["source_host"],
+                "dest_host": r["dest_host"], "description": r["description"],
+                "evidence": r["evidence"],
             }
             for r in rows
         ]

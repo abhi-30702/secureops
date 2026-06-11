@@ -65,9 +65,15 @@ class InternalWorker(QThread):
             self._db.update_scan_status(self._scan_id, "complete", datetime.now(timezone.utc).isoformat())
             self.scan_complete.emit(0, 0)
             return
-        # Stage 2 added in Task 3
+
+        try:
+            findings_count = self._stage2_service_scan(runner, live_ips)
+        except CancelledError:
+            self._db.update_scan_status(self._scan_id, "cancelled", datetime.now(timezone.utc).isoformat())
+            return
+
         self._db.update_scan_status(self._scan_id, "complete", datetime.now(timezone.utc).isoformat())
-        self.scan_complete.emit(len(live_ips), 0)
+        self.scan_complete.emit(len(live_ips), findings_count)
 
     def _stage1_ping_sweep(self, runner: ToolRunner) -> list[str] | None:
         self.log_line.emit("[internal] Stage 1 — ping sweep")
@@ -102,3 +108,65 @@ class InternalWorker(QThread):
 
         self.log_line.emit(f"[internal] Stage 1 complete — {len(live)} live hosts")
         return live
+
+    def _stage2_service_scan(self, runner: ToolRunner, live_ips: list[str]) -> int:
+        self.log_line.emit(f"[internal] Stage 2 — service scan ({len(live_ips)} hosts)")
+        try:
+            xml_out = runner.run_buffered(
+                ["nmap", "-sV", "-T4", "--open", "-oX", "-"] + live_ips,
+                timeout=600,
+            )
+        except CancelledError:
+            raise
+        except ToolError as exc:
+            self.scan_failed.emit(f"nmap service scan failed: {exc}")
+            return 0
+
+        try:
+            root = ET.fromstring(xml_out)
+        except ET.ParseError:
+            self.log_line.emit("[internal] service scan: failed to parse nmap XML")
+            return 0
+
+        count = 0
+        for host_el in root.findall("host"):
+            addr_el = host_el.find("address[@addrtype='ipv4']")
+            if addr_el is None:
+                continue
+            ip = addr_el.get("addr", "unknown")
+
+            ports_el = host_el.find("ports")
+            open_ports: list[int] = []
+            port_desc_parts: list[str] = []
+            if ports_el is not None:
+                for port_el in ports_el.findall("port"):
+                    state_el = port_el.find("state")
+                    if state_el is None or state_el.get("state") != "open":
+                        continue
+                    portid = int(port_el.get("portid", 0))
+                    open_ports.append(portid)
+                    svc_el = port_el.find("service")
+                    svc_name = svc_el.get("name", "") if svc_el is not None else ""
+                    port_desc_parts.append(f"{portid}/{svc_name}" if svc_name else str(portid))
+
+            device_type = _classify_device(open_ports)
+            ports_str = ", ".join(port_desc_parts) or "none"
+
+            finding = Finding(
+                id=None,
+                scan_id=self._scan_id,
+                host_id=None,
+                tool="nmap-internal",
+                severity="info",
+                title=f"{device_type} — {ip}",
+                description=f"Open ports: {ports_str}",
+                raw_json="",
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+            finding.id = self._db.insert_finding(finding)
+            self.finding_found.emit(finding)
+            self.log_line.emit(f"[internal] {ip} — {device_type} ({ports_str})")
+            count += 1
+
+        self.log_line.emit(f"[internal] Stage 2 complete — {count} hosts processed")
+        return count

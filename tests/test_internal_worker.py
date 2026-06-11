@@ -108,3 +108,86 @@ def test_stage1_tool_error_emits_scan_failed(qtbot):
     live = worker._stage1_ping_sweep(mock_runner)
     assert live is None
     assert any("nmap" in m for m in failed)
+
+
+# ── stage 2 tests ─────────────────────────────────────────────────────────────
+
+_SERVICE_XML = textwrap.dedent("""\
+    <?xml version="1.0"?>
+    <nmaprun>
+      <host>
+        <address addr="192.168.1.10" addrtype="ipv4"/>
+        <ports>
+          <port protocol="tcp" portid="22">
+            <state state="open"/>
+            <service name="ssh" product="OpenSSH" version="8.9"/>
+          </port>
+          <port protocol="tcp" portid="80">
+            <state state="open"/>
+            <service name="http" product="Apache"/>
+          </port>
+        </ports>
+      </host>
+    </nmaprun>
+""")
+
+
+def test_stage2_emits_finding_per_host(qtbot):
+    worker, db = _make_worker()
+    findings = []
+    worker.finding_found.connect(findings.append)
+
+    mock_runner = MagicMock()
+    mock_runner.run_buffered.return_value = _SERVICE_XML
+    worker._stage2_service_scan(mock_runner, ["192.168.1.10"])
+
+    assert len(findings) == 1
+    assert findings[0].tool == "nmap-internal"
+    assert "192.168.1.10" in findings[0].title
+
+
+def test_stage2_classifies_device_correctly(qtbot):
+    worker, db = _make_worker()
+    findings = []
+    worker.finding_found.connect(findings.append)
+
+    mock_runner = MagicMock()
+    mock_runner.run_buffered.return_value = _SERVICE_XML
+    worker._stage2_service_scan(mock_runner, ["192.168.1.10"])
+
+    # ports 22+80 → server
+    assert "server" in findings[0].title
+
+
+def test_stage2_writes_finding_to_db(qtbot):
+    worker, db = _make_worker()
+
+    mock_runner = MagicMock()
+    mock_runner.run_buffered.return_value = _SERVICE_XML
+    worker._stage2_service_scan(mock_runner, ["192.168.1.10"])
+
+    stored = db.query_findings_by_scan(worker._scan_id)
+    assert len(stored) == 1
+    assert stored[0].tool == "nmap-internal"
+
+
+def test_stage2_returns_count(qtbot):
+    worker, db = _make_worker()
+
+    mock_runner = MagicMock()
+    mock_runner.run_buffered.return_value = _SERVICE_XML
+    count = worker._stage2_service_scan(mock_runner, ["192.168.1.10"])
+
+    assert count == 1
+
+
+def test_stage2_tool_error_emits_scan_failed(qtbot):
+    worker, db = _make_worker()
+    failed = []
+    worker.scan_failed.connect(failed.append)
+
+    mock_runner = MagicMock()
+    mock_runner.run_buffered.side_effect = ToolError("nmap: exited with code 1")
+    worker._stage2_service_scan(mock_runner, ["192.168.1.10"])
+
+    assert len(failed) == 1

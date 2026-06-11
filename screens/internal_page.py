@@ -155,7 +155,7 @@ class InternalPage(QWidget):
             item = self._chips_row.itemAt(i)
             if item and item.widget():
                 w = item.widget()
-                if subnet in w.text():
+                if w.text() == f"{subnet}  ×":
                     self._chips_row.removeWidget(w)
                     w.deleteLater()
                     break
@@ -193,6 +193,7 @@ class InternalPage(QWidget):
         self._worker.scan_complete.connect(self._on_complete)
         self._worker.scan_failed.connect(self._on_failed)
         self._worker.start()
+        self._worker.finished.connect(self._on_worker_finished)
 
         self._start_btn.setText("■  Stop Sweep")
         self._status_label.setText("Sweeping…")
@@ -228,3 +229,8 @@ class InternalPage(QWidget):
         self._start_btn.setEnabled(True)
         self._status_label.setText(f"Error: {msg}")
         self._status_label.setStyleSheet("color: #C94A62; font-size: 11px;")
+
+    def _on_worker_finished(self):
+        if not self._start_btn.isEnabled():
+            self._start_btn.setText("▶  Start Sweep")
+            self._start_btn.setEnabled(True)

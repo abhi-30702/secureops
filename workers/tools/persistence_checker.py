@@ -1,4 +1,3 @@
-import glob
 import os
 import subprocess
 import time
@@ -18,6 +17,7 @@ _CRON_FILES = ["/etc/crontab"]
 _MAX_AGE_SECONDS = 7 * 86400
 
 KNOWN_GOOD_SUID = {
+    # Core user/auth utilities
     "/usr/bin/sudo",
     "/usr/bin/passwd",
     "/usr/bin/newgrp",
@@ -25,11 +25,37 @@ KNOWN_GOOD_SUID = {
     "/usr/bin/chsh",
     "/usr/bin/chfn",
     "/usr/bin/su",
+    # Filesystem / mount
     "/usr/bin/mount",
     "/usr/bin/umount",
+    "/usr/bin/fusermount3",
+    "/usr/bin/ntfs-3g",
+    "/usr/sbin/mount.cifs",
+    "/usr/sbin/mount.nfs",
+    # PolicyKit / D-Bus / SSH / X11
     "/usr/bin/pkexec",
     "/usr/lib/openssh/ssh-keysign",
     "/usr/lib/dbus-1.0/dbus-daemon-launch-helper",
+    "/usr/lib/xorg/Xorg.wrap",
+    # Chromium sandbox
+    "/usr/lib/chromium/chrome-sandbox",
+    # Kismet wireless capture helpers (Kali)
+    "/usr/bin/kismet_cap_hak5_wifi_coconut",
+    "/usr/bin/kismet_cap_linux_bluetooth",
+    "/usr/bin/kismet_cap_linux_wifi",
+    "/usr/bin/kismet_cap_nrf_51822",
+    "/usr/bin/kismet_cap_nrf_52840",
+    "/usr/bin/kismet_cap_nrf_mousejack",
+    "/usr/bin/kismet_cap_nxp_kw41z",
+    "/usr/bin/kismet_cap_rz_killerbee",
+    "/usr/bin/kismet_cap_ti_cc_2531",
+    "/usr/bin/kismet_cap_ti_cc_2540",
+    "/usr/bin/kismet_cap_ubertooth_one",
+    # Remote shell (rsh-redone package)
+    "/usr/bin/rsh-redone-rlogin",
+    "/usr/bin/rsh-redone-rsh",
+    # PPP
+    "/usr/sbin/pppd",
 }
 
 
@@ -110,6 +136,9 @@ def _check_suid() -> list[dict]:
             text=True,
             timeout=30,
         )
+        # find exits 1 on permission errors for subtrees but still returns output
+        if proc.returncode not in (0, 1):
+            return findings
         for line in proc.stdout.splitlines():
             path = line.strip()
             if path and path not in KNOWN_GOOD_SUID:

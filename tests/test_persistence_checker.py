@@ -68,9 +68,6 @@ def test_suid_unknown_binary_emits_finding():
 
     with patch("subprocess.run", return_value=mock_proc):
         from workers.tools import persistence_checker
-        # Reload to ensure fresh import
-        import importlib
-        importlib.reload(persistence_checker)
         results = persistence_checker._check_suid()
 
     assert len(results) == 1
@@ -87,8 +84,6 @@ def test_suid_only_known_good_no_finding():
 
     with patch("subprocess.run", return_value=mock_proc):
         from workers.tools import persistence_checker
-        import importlib
-        importlib.reload(persistence_checker)
         results = persistence_checker._check_suid()
 
     assert results == []

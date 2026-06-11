@@ -62,6 +62,16 @@ CREATE TABLE IF NOT EXISTS app_settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS incident_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_id     INTEGER,
+    timestamp   TEXT,
+    event_type  TEXT,
+    source_host TEXT,
+    dest_host   TEXT,
+    description TEXT,
+    evidence    TEXT
+);
 """
 
 
@@ -134,6 +144,41 @@ class DB:
             )
             self._conn.commit()
             return cur.lastrowid
+
+    def insert_incident_event(self, event: dict) -> int:
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO incident_events "
+                "(scan_id, timestamp, event_type, source_host, dest_host, description, evidence) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (
+                    event.get("scan_id"),
+                    event.get("timestamp", ""),
+                    event.get("event_type", "anomaly"),
+                    event.get("source_host", ""),
+                    event.get("dest_host", ""),
+                    event.get("description", ""),
+                    event.get("evidence", ""),
+                ),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def get_incident_events(self, scan_id: int) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, scan_id, timestamp, event_type, source_host, dest_host, description, evidence "
+                "FROM incident_events WHERE scan_id=? ORDER BY id",
+                (scan_id,),
+            ).fetchall()
+        return [
+            {
+                "id": r[0], "scan_id": r[1], "timestamp": r[2],
+                "event_type": r[3], "source_host": r[4],
+                "dest_host": r[5], "description": r[6], "evidence": r[7],
+            }
+            for r in rows
+        ]
 
     def query_findings_by_scan(self, scan_id: int) -> list[Finding]:
         rows = self._conn.execute("SELECT * FROM findings WHERE scan_id=? ORDER BY id", (scan_id,)).fetchall()

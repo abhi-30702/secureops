@@ -1,17 +1,18 @@
 from PyQt6.QtCore import Qt
 from screens.client_onboarding import ClientOnboardingScreen
+from db import DB
 
 
-def test_client_screen_has_company_name_field(qtbot):
+def test_client_screen_has_name_field(qtbot):
     screen = ClientOnboardingScreen()
     qtbot.addWidget(screen)
-    assert screen._company_name_input is not None
+    assert screen._name_input is not None
 
 
-def test_client_screen_has_domain_field(qtbot):
+def test_client_screen_has_domains_field(qtbot):
     screen = ClientOnboardingScreen()
     qtbot.addWidget(screen)
-    assert screen._domain_input is not None
+    assert screen._domains_input is not None
 
 
 def test_client_screen_has_firewall_combo(qtbot):
@@ -20,10 +21,10 @@ def test_client_screen_has_firewall_combo(qtbot):
     assert screen._firewall_combo.count() > 0
 
 
-def test_client_screen_has_notes_field(qtbot):
+def test_client_screen_has_company_list(qtbot):
     screen = ClientOnboardingScreen()
     qtbot.addWidget(screen)
-    assert screen._notes_input is not None
+    assert screen._company_list is not None
 
 
 def test_client_screen_has_save_button(qtbot):
@@ -32,42 +33,40 @@ def test_client_screen_has_save_button(qtbot):
     assert screen._save_btn is not None
 
 
-def test_client_screen_save_shows_confirmation(qtbot):
-    screen = ClientOnboardingScreen()
+def test_client_screen_loads_seeded_companies(qtbot):
+    db = DB(":memory:")
+    screen = ClientOnboardingScreen(db=db)
     qtbot.addWidget(screen)
-    screen.show()
-
-    assert not screen._confirmation_label.isVisible()
-    qtbot.mouseClick(screen._save_btn, Qt.MouseButton.LeftButton)
-    assert screen._confirmation_label.isVisible()
+    assert screen._company_list.count() == 9
 
 
-def test_client_screen_save_persists_to_db(qtbot):
-    from db import DB
-    from models import Client
-
+def test_client_screen_save_updates_company(qtbot):
     db = DB(":memory:")
     screen = ClientOnboardingScreen(db=db)
     qtbot.addWidget(screen)
     screen.show()
 
-    screen._company_name_input.setText("Acme Corp")
-    screen._domain_input.setText("acme.com")
-
+    # First company is selected by default; edit its name and save
+    screen._name_input.setText("Renamed Corp")
     qtbot.mouseClick(screen._save_btn, Qt.MouseButton.LeftButton)
 
-    clients = db.query_clients()
-    assert len(clients) == 1
-    assert clients[0].name == "Acme Corp"
-    assert clients[0].domain == "acme.com"
+    assert screen._status_label.text() == "Saved ✓"
+    companies = db.get_companies()
+    names = [c["name"] for c in companies]
+    assert "Renamed Corp" in names
 
 
-def test_client_screen_save_without_db_shows_confirmation_no_crash(qtbot):
-    screen = ClientOnboardingScreen(db=None)
+def test_client_screen_add_new_company(qtbot):
+    db = DB(":memory:")
+    screen = ClientOnboardingScreen(db=db)
     qtbot.addWidget(screen)
     screen.show()
 
-    screen._company_name_input.setText("Test Co")
+    qtbot.mouseClick(screen._add_btn, Qt.MouseButton.LeftButton)
+    screen._name_input.setText("Brand New Co")
+    screen._domains_input.setText("brandnew.com")
     qtbot.mouseClick(screen._save_btn, Qt.MouseButton.LeftButton)
 
-    assert screen._confirmation_label.isVisible()
+    companies = db.get_companies()
+    names = [c["name"] for c in companies]
+    assert "Brand New Co" in names

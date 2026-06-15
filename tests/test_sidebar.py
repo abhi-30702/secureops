@@ -3,10 +3,10 @@ from PyQt6.QtCore import Qt
 from sidebar import Sidebar, COLLAPSED_WIDTH, EXPANDED_WIDTH
 
 
-def test_sidebar_has_seven_nav_buttons(qtbot):
+def test_sidebar_has_eight_nav_buttons(qtbot):
     sidebar = Sidebar()
     qtbot.addWidget(sidebar)
-    assert len(sidebar._buttons) == 7
+    assert len(sidebar._buttons) == 8
 
 
 def test_sidebar_starts_collapsed(qtbot):

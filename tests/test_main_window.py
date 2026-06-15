@@ -14,10 +14,10 @@ def _all_present():
     return {t: True for t in TOOLS}
 
 
-def test_main_window_stack_has_seven_screens(qtbot):
+def test_main_window_stack_has_eight_screens(qtbot):
     win = MainWindow(_all_present())
     qtbot.addWidget(win)
-    assert win._stack.count() == 7
+    assert win._stack.count() == 8
 
 
 def test_main_window_default_screen_is_dashboard(qtbot):

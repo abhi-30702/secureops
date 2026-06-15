@@ -12,6 +12,7 @@ _NAV_ITEMS = [
     ("⚙", "Settings", 4),
     ("⬡", "Internal", 5),
     ("🔥", "Incident", 6),
+    ("🔍", "OSINT", 7),
 ]
 
 

@@ -13,6 +13,7 @@ from db import DB
 from models import Scan
 from workers.cloud_worker import CloudWorker
 from screens.widgets.finding_cards import FindingCards
+from screens.widgets.company_selector import CompanySelector
 
 # ---------------------------------------------------------------------------
 # Colour palette
@@ -108,6 +109,7 @@ class CloudPage(QWidget):
         self._status_label: QLabel | None = None
         self._finding_cards: FindingCards | None = None
         self._terminal: QPlainTextEdit | None = None
+        self._company_selector: CompanySelector | None = None
 
         self._setup_ui()
         self.setStyleSheet(_QSS)
@@ -125,6 +127,11 @@ class CloudPage(QWidget):
         header = QLabel("Cloud Audit")
         header.setObjectName("header")
         layout.addWidget(header)
+
+        if self._db:
+            self._company_selector = CompanySelector(db=self._db)
+            self._company_selector.company_selected.connect(self._on_company_selected)
+            layout.addWidget(self._company_selector)
 
         # AWS group
         aws_group = QGroupBox("AWS")
@@ -209,6 +216,10 @@ class CloudPage(QWidget):
     # ------------------------------------------------------------------
     # Slot: start / stop button
     # ------------------------------------------------------------------
+
+    def _on_company_selected(self, company: dict) -> None:
+        self._aws_profile.setText(company.get("aws_profile", ""))
+        self._gcp_project.setText(company.get("gcp_project", ""))
 
     def _on_start_stop(self):
         if self._worker is not None and self._worker.isRunning():

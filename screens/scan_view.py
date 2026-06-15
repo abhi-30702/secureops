@@ -9,6 +9,7 @@ from screens.widgets.pipeline_tracker import PipelineTracker
 from screens.widgets.attack_graph import AttackGraph
 from screens.widgets.severity_rings import SeverityRings
 from screens.widgets.finding_cards import FindingCards
+from screens.widgets.company_selector import CompanySelector
 
 
 class ScanViewScreen(QWidget):
@@ -32,12 +33,18 @@ class ScanViewScreen(QWidget):
         self._terminal_panel: QPlainTextEdit | None = None
         self._worker = None
         self._scan_id: int | None = None
+        self._company_selector: CompanySelector | None = None
         self._setup_ui()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
+
+        if self._db:
+            self._company_selector = CompanySelector(db=self._db)
+            self._company_selector.company_selected.connect(self._on_company_selected)
+            layout.addWidget(self._company_selector)
 
         top_bar = QHBoxLayout()
 
@@ -120,6 +127,15 @@ class ScanViewScreen(QWidget):
         main_splitter.setSizes([800, 200])
 
         layout.addWidget(main_splitter, stretch=1)
+
+    def _on_company_selected(self, company: dict) -> None:
+        import json
+        try:
+            domains = json.loads(company.get("domains", "[]"))
+            if domains:
+                self._target_input.setText(domains[0])
+        except Exception:
+            pass
 
     def _set_mode(self, mode: str):
         self._mode = mode

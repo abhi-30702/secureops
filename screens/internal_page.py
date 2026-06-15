@@ -12,6 +12,7 @@ from models import Scan
 from screens.widgets.topology_graph import TopologyGraph
 from screens.widgets.severity_rings import SeverityRings
 from screens.widgets.finding_cards import FindingCards
+from screens.widgets.company_selector import CompanySelector
 from workers.internal_worker import InternalWorker
 
 
@@ -34,6 +35,7 @@ class InternalPage(QWidget):
         self._severity_rings: SeverityRings | None = None
         self._finding_cards: FindingCards | None = None
         self._terminal: QPlainTextEdit | None = None
+        self._company_selector: CompanySelector | None = None
 
         self._setup_ui()
 
@@ -41,6 +43,11 @@ class InternalPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
+
+        if self._db:
+            self._company_selector = CompanySelector(db=self._db)
+            self._company_selector.company_selected.connect(self._on_company_selected)
+            layout.addWidget(self._company_selector)
 
         # --- top bar ---
         top_bar = QHBoxLayout()
@@ -120,6 +127,15 @@ class InternalPage(QWidget):
             subnet = subnet.strip()
             if subnet and subnet not in current:
                 self._add_chip(subnet)
+
+    def _on_company_selected(self, company: dict) -> None:
+        import json
+        try:
+            ranges = json.loads(company.get("ip_ranges", "[]"))
+            if ranges:
+                self._subnet_input.setText(ranges[0])
+        except Exception:
+            pass
 
     def _on_add_chip(self):
         text = self._subnet_input.text().strip()

@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from db import DB
 from models import Scan
 from workers.osint_worker import OsintWorker
+from screens.widgets.company_selector import CompanySelector
 
 # ---------------------------------------------------------------------------
 # Colour palette
@@ -107,6 +108,7 @@ class OsintPage(QWidget):
         self._status_label: QLabel | None = None
         self._table: QTableWidget | None = None
         self._terminal: QPlainTextEdit | None = None
+        self._company_selector: CompanySelector | None = None
 
         self._setup_ui()
         self.setStyleSheet(_QSS)
@@ -124,6 +126,11 @@ class OsintPage(QWidget):
         header = QLabel("OSINT Intelligence")
         header.setObjectName("header")
         layout.addWidget(header)
+
+        if self._db:
+            self._company_selector = CompanySelector(db=self._db)
+            self._company_selector.company_selected.connect(self._on_company_selected)
+            layout.addWidget(self._company_selector)
 
         # Top bar
         top_bar = QHBoxLayout()
@@ -191,6 +198,15 @@ class OsintPage(QWidget):
     # ------------------------------------------------------------------
     # Slot: start / stop button
     # ------------------------------------------------------------------
+
+    def _on_company_selected(self, company: dict) -> None:
+        import json
+        try:
+            domains = json.loads(company.get("domains", "[]"))
+            if domains:
+                self._domain_input.setText(domains[0])
+        except Exception:
+            pass
 
     def _on_start_stop(self):
         if self._worker is not None and self._worker.isRunning():

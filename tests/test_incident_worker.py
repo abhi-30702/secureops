@@ -169,3 +169,9 @@ def test_cancel_sets_db_status_cancelled(qtbot, tmp_path):
     # After cancellation the scan status should not be "running"
     row = db._conn.execute("SELECT status FROM scans WHERE id=?", (w._scan_id,)).fetchone()
     assert row[0] in ("cancelled", "complete", "failed")
+
+    # Ensure the QThread is fully stopped before teardown to prevent
+    # dangling Qt objects from corrupting subsequent tests.
+    w.stop()
+    w.wait(500)
+    w.deleteLater()

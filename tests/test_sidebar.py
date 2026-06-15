@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 from sidebar import Sidebar, COLLAPSED_WIDTH, EXPANDED_WIDTH
 
 
-def test_sidebar_has_five_nav_buttons(qtbot):
+def test_sidebar_has_seven_nav_buttons(qtbot):
     sidebar = Sidebar()
     qtbot.addWidget(sidebar)
     assert len(sidebar._buttons) == 7

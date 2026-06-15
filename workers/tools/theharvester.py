@@ -16,6 +16,9 @@ def run(domain: str, sources: str, output_file: str) -> list[dict]:
         List of dicts: {item_type, value, source}
         Returns [] on any error — never raises.
     """
+    # theHarvester adds .json to the output_file automatically
+    json_path = f"{output_file}.json"
+
     try:
         # Build command
         cmd = ["theHarvester", "-d", domain, "-b", sources, "-f", output_file]
@@ -28,8 +31,9 @@ def run(domain: str, sources: str, output_file: str) -> list[dict]:
             text=True,
         )
 
-        # theHarvester adds .json to the output_file automatically
-        json_path = f"{output_file}.json"
+        # Check if the command succeeded
+        if result.returncode != 0:
+            return []
 
         # Read and parse the JSON output
         with open(json_path, "r") as f:
@@ -87,12 +91,6 @@ def run(domain: str, sources: str, output_file: str) -> list[dict]:
                     "source": "theharvester"
                 })
 
-        # Clean up the JSON file
-        try:
-            os.unlink(json_path)
-        except FileNotFoundError:
-            pass
-
         return results
 
     except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError):
@@ -100,3 +98,9 @@ def run(domain: str, sources: str, output_file: str) -> list[dict]:
     except Exception:
         # Catch any other exception and return empty list
         return []
+    finally:
+        # Always clean up the JSON file
+        try:
+            os.unlink(json_path)
+        except FileNotFoundError:
+            pass

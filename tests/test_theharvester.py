@@ -62,3 +62,31 @@ def test_malformed_json_returns_empty():
     finally:
         if os.path.exists(tmpfile):
             os.unlink(tmpfile)
+
+
+def test_cleans_up_json_file():
+    """Test that JSON file is cleaned up even after successful parse."""
+    tmpfile = "/tmp/test_cleanup_harvest.json"
+    test_data = {
+        "emails": ["admin@example.com"],
+        "hosts": [],
+        "ips": [],
+        "interesting_urls": []
+    }
+
+    with open(tmpfile, "w") as f:
+        json.dump(test_data, f)
+
+    # Verify file exists before calling run
+    assert os.path.exists(tmpfile)
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        result = theharvester.run("example.com", "crtsh", "/tmp/test_cleanup_harvest")
+
+        # Should have parsed the email
+        assert len(result) == 1
+        assert result[0]["item_type"] == "email"
+
+        # File should be cleaned up
+        assert not os.path.exists(tmpfile)

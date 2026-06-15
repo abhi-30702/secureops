@@ -241,7 +241,7 @@ class OsintPage(QWidget):
         self._worker.log_line.connect(self._on_log_line)
         self._worker.scan_complete.connect(self._on_complete)
         self._worker.scan_failed.connect(self._on_failed)
-        self._worker.finished.connect(self._worker.deleteLater)
+        self._worker.finished.connect(self._on_worker_finished)
         self._worker.start()
 
         self._start_btn.setText("■ Stop")
@@ -249,6 +249,13 @@ class OsintPage(QWidget):
     # ------------------------------------------------------------------
     # Worker signal handlers
     # ------------------------------------------------------------------
+
+    def _on_worker_finished(self):
+        if self._worker is not None:
+            self._worker.deleteLater()
+            self._worker = None
+        self._start_btn.setText("▶ Start Scan")
+        self._start_btn.setEnabled(True)
 
     def _on_item_found(self, item: dict):
         row = self._table.rowCount()
@@ -271,20 +278,10 @@ class OsintPage(QWidget):
         self._status_label.setStyleSheet(
             "color: #00805A; font-size: 11px;"
         )
-        self._start_btn.setText("▶ Start Scan")
-        self._start_btn.setEnabled(True)
-        if self._worker is not None:
-            self._worker.deleteLater()
-            self._worker = None
 
     def _on_failed(self, msg: str):
         self._status_label.setText(f"Error: {msg}")
         self._status_label.setStyleSheet(
             "color: #C94A62; font-size: 11px;"
         )
-        self._start_btn.setText("▶ Start Scan")
-        self._start_btn.setEnabled(True)
-        if self._worker is not None:
-            self._worker.deleteLater()
-            self._worker = None
         self._scan_id = None

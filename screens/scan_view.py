@@ -32,6 +32,7 @@ class ScanViewScreen(QWidget):
         self._finding_cards_panel: FindingCards | None = None
         self._terminal_panel: QPlainTextEdit | None = None
         self._worker = None
+        self._batch_worker = None
         self._scan_id: int | None = None
         self._company_selector: CompanySelector | None = None
         self._setup_ui()
@@ -75,10 +76,16 @@ class ScanViewScreen(QWidget):
         self._start_btn.setToolTip("Enter a target and click to scan" if self._db else "DB not initialised")
         self._start_btn.clicked.connect(self._on_start_cancel)
 
+        self._batch_btn = QPushButton("⚡ Scan All")
+        self._batch_btn.setEnabled(self._db is not None)
+        self._batch_btn.setToolTip("Run subfinder→httpx→nuclei across all registered companies")
+        self._batch_btn.clicked.connect(self._on_batch_scan)
+
         top_bar.addWidget(self._scan_mode_btn)
         top_bar.addWidget(self._log_mode_btn)
         top_bar.addWidget(self._target_input, stretch=1)
         top_bar.addWidget(self._browse_btn)
+        top_bar.addWidget(self._batch_btn)
         top_bar.addWidget(self._start_btn)
         layout.addLayout(top_bar)
 
@@ -127,6 +134,29 @@ class ScanViewScreen(QWidget):
         main_splitter.setSizes([800, 200])
 
         layout.addWidget(main_splitter, stretch=1)
+
+    def _on_batch_scan(self) -> None:
+        from workers.batch_scan_worker import BatchScanWorker
+        companies = self._db.get_companies() if self._db else []
+        if not companies:
+            self._status_label.setText("No companies registered.")
+            return
+        self._batch_worker = BatchScanWorker(companies=companies, db=self._db)
+        self._batch_worker.finding_discovered.connect(self._finding_cards_panel.add_finding)
+        self._batch_worker.finding_discovered.connect(self._severity_panel.add_finding)
+        self._batch_worker.tool_log.connect(self._log)
+        self._batch_worker.company_started.connect(
+            lambda name, idx: self._status_label.setText(f"Scanning {name}…")
+        )
+        self._batch_worker.batch_complete.connect(
+            lambda n, total: self._status_label.setText(
+                f"Batch complete — {n} companies, {total} findings"
+            )
+        )
+        self._batch_worker.finished.connect(self._batch_worker.deleteLater)
+        self._batch_btn.setEnabled(False)
+        self._batch_worker.batch_complete.connect(lambda *_: self._batch_btn.setEnabled(True))
+        self._batch_worker.start()
 
     def _on_company_selected(self, company: dict) -> None:
         import json

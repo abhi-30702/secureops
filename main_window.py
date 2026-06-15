@@ -11,6 +11,7 @@ from screens.settings import SettingsScreen
 from screens.internal_page import InternalPage
 from screens.incident_page import IncidentPage
 from screens.osint_page import OsintPage
+from screens.cloud_page import CloudPage
 from db import DB
 
 
@@ -62,6 +63,8 @@ class MainWindow(QMainWindow):
         self._incident.scan_ready.connect(self._on_scan_ready)
         self._osint = OsintPage(db=self._db)
         self._stack.addWidget(self._osint)                                      # 7
+        self._cloud = CloudPage(db=self._db)
+        self._stack.addWidget(self._cloud)                                      # 8
 
         row_layout.addWidget(self._sidebar)
         row_layout.addWidget(self._stack, stretch=1)

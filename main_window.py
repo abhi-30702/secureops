@@ -9,6 +9,7 @@ from screens.scan_view import ScanViewScreen
 from screens.report import ReportScreen
 from screens.settings import SettingsScreen
 from screens.internal_page import InternalPage
+from screens.incident_page import IncidentPage
 from db import DB
 
 
@@ -55,6 +56,9 @@ class MainWindow(QMainWindow):
         self._internal = InternalPage(db=self._db)
         self._stack.addWidget(self._internal)                                   # 5
         self._internal.scan_ready.connect(self._on_scan_ready)
+        self._incident = IncidentPage(db=self._db)
+        self._stack.addWidget(self._incident)                                   # 6
+        self._incident.scan_ready.connect(self._on_scan_ready)
 
         row_layout.addWidget(self._sidebar)
         row_layout.addWidget(self._stack, stretch=1)

@@ -72,6 +72,15 @@ CREATE TABLE IF NOT EXISTS incident_events (
     description TEXT,
     evidence    TEXT
 );
+CREATE TABLE IF NOT EXISTS osint_items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_id     INTEGER,
+    domain      TEXT,
+    item_type   TEXT,
+    value       TEXT,
+    source      TEXT,
+    created_at  TEXT
+);
 """
 
 
@@ -177,6 +186,40 @@ class DB:
                 "event_type": r["event_type"], "source_host": r["source_host"],
                 "dest_host": r["dest_host"], "description": r["description"],
                 "evidence": r["evidence"],
+            }
+            for r in rows
+        ]
+
+    def insert_osint_item(self, item: dict) -> int:
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO osint_items "
+                "(scan_id, domain, item_type, value, source, created_at) "
+                "VALUES (?,?,?,?,?,?)",
+                (
+                    item.get("scan_id"),
+                    item.get("domain", ""),
+                    item.get("item_type", ""),
+                    item.get("value", ""),
+                    item.get("source", ""),
+                    item.get("created_at", ""),
+                ),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def get_osint_items(self, scan_id: int) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, scan_id, domain, item_type, value, source, created_at "
+                "FROM osint_items WHERE scan_id=? ORDER BY id",
+                (scan_id,),
+            ).fetchall()
+        return [
+            {
+                "id": r["id"], "scan_id": r["scan_id"], "domain": r["domain"],
+                "item_type": r["item_type"], "value": r["value"],
+                "source": r["source"], "created_at": r["created_at"],
             }
             for r in rows
         ]

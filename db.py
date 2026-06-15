@@ -81,7 +81,29 @@ CREATE TABLE IF NOT EXISTS osint_items (
     source      TEXT,
     created_at  TEXT
 );
+CREATE TABLE IF NOT EXISTS companies (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL,
+    domains       TEXT DEFAULT '[]',
+    ip_ranges     TEXT DEFAULT '[]',
+    aws_profile   TEXT DEFAULT '',
+    gcp_project   TEXT DEFAULT '',
+    firewall_type TEXT DEFAULT '',
+    created_at    TEXT DEFAULT ''
+);
 """
+
+_SEED_COMPANIES = [
+    {"name": "Fidelitus Corp HQ",      "domains": '["fidelitus.com"]',          "ip_ranges": '["10.0.0.0/24"]'},
+    {"name": "Fidelitus Education",    "domains": '["fidelitusedu.com"]',       "ip_ranges": '["10.0.8.0/24"]'},
+    {"name": "Fidelitus Finance",      "domains": '["fidelitusfinance.com"]',   "ip_ranges": '["10.0.3.0/24"]'},
+    {"name": "Fidelitus Healthcare",   "domains": '["fidelitushealth.com"]',    "ip_ranges": '["10.0.7.0/24"]'},
+    {"name": "Fidelitus HR Solutions", "domains": '["fidelitushr.com"]',        "ip_ranges": '["10.0.2.0/24"]'},
+    {"name": "Fidelitus Legal",        "domains": '["fidelituslegal.com"]',     "ip_ranges": '["10.0.6.0/24"]'},
+    {"name": "Fidelitus Logistics",    "domains": '["fidelituslogistics.com"]', "ip_ranges": '["10.0.4.0/24"]'},
+    {"name": "Fidelitus Properties",   "domains": '["fidelitusproperties.com"]',"ip_ranges": '["10.0.1.0/24"]'},
+    {"name": "Fidelitus Tech",         "domains": '["fidelitustech.com"]',      "ip_ranges": '["10.0.5.0/24"]'},
+]
 
 
 class DB:
@@ -94,6 +116,62 @@ class DB:
             if stmt.strip():
                 self._conn.execute(stmt)
         self._conn.commit()
+        self._ensure_seed_companies()
+
+    def _ensure_seed_companies(self) -> None:
+        with self._lock:
+            count = self._conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+            if count == 0:
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc).isoformat()
+                for c in _SEED_COMPANIES:
+                    self._conn.execute(
+                        "INSERT INTO companies (name, domains, ip_ranges, aws_profile, gcp_project, firewall_type, created_at) "
+                        "VALUES (?,?,?,?,?,?,?)",
+                        (c["name"], c.get("domains", "[]"), c.get("ip_ranges", "[]"),
+                         c.get("aws_profile", ""), c.get("gcp_project", ""),
+                         c.get("firewall_type", ""), now),
+                    )
+                self._conn.commit()
+
+    def insert_company(self, company: dict) -> int:
+        from datetime import datetime, timezone
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO companies (name, domains, ip_ranges, aws_profile, gcp_project, firewall_type, created_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (company.get("name", ""), company.get("domains", "[]"),
+                 company.get("ip_ranges", "[]"), company.get("aws_profile", ""),
+                 company.get("gcp_project", ""), company.get("firewall_type", ""),
+                 company.get("created_at", datetime.now(timezone.utc).isoformat())),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def get_companies(self) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, name, domains, ip_ranges, aws_profile, gcp_project, firewall_type, created_at "
+                "FROM companies ORDER BY name"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_company(self, company_id: int, company: dict) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE companies SET name=?, domains=?, ip_ranges=?, aws_profile=?, gcp_project=?, firewall_type=? "
+                "WHERE id=?",
+                (company.get("name", ""), company.get("domains", "[]"),
+                 company.get("ip_ranges", "[]"), company.get("aws_profile", ""),
+                 company.get("gcp_project", ""), company.get("firewall_type", ""),
+                 company_id),
+            )
+            self._conn.commit()
+
+    def delete_company(self, company_id: int) -> None:
+        with self._lock:
+            self._conn.execute("DELETE FROM companies WHERE id=?", (company_id,))
+            self._conn.commit()
 
     def insert_client(self, client: Client) -> int:
         with self._lock:

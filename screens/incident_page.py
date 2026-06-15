@@ -168,9 +168,13 @@ class IncidentPage(QWidget):
     def _on_complete(self, _hosts: int, findings: int):
         self._start_btn.setText("▶  Start Scan")
         self._start_btn.setEnabled(True)
+        if self._worker:
+            self._worker.deleteLater()
+            self._worker = None
         self._status_label.setText(f"Done — {findings} findings")
         self._status_label.setStyleSheet("color: #00A85A; font-size: 11px;")
         self._finding_cards.on_scan_complete(0, findings)
+        self._severity_rings.on_scan_complete(0, findings)
         if self._scan_id is not None:
             for event in self._db.get_incident_events(self._scan_id):
                 self._timeline.add_event(event)
@@ -179,6 +183,10 @@ class IncidentPage(QWidget):
     def _on_failed(self, msg: str):
         self._start_btn.setText("▶  Start Scan")
         self._start_btn.setEnabled(True)
+        if self._worker:
+            self._worker.deleteLater()
+            self._worker = None
+        self._scan_id = None
         self._status_label.setText(f"Error: {msg}")
         self._status_label.setStyleSheet("color: #C94A62; font-size: 11px;")
 

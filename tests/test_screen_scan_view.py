@@ -1,4 +1,20 @@
+import gc
+import pytest
 from screens.scan_view import ScanViewScreen
+
+
+@pytest.fixture(autouse=True)
+def _gc_after_each():
+    """Force Python GC after every test in this file.
+
+    ScanViewScreen embeds an AttackGraph (pyqtgraph PlotWidget). Without
+    explicit collection, accumulated pyqtgraph C++ objects across the ~25
+    tests in this file exhaust internal pyqtgraph state and trigger a
+    segfault mid-suite. gc.collect() destroys each PlotWidget promptly
+    so the next test starts from a clean slate.
+    """
+    yield
+    gc.collect()
 
 
 def test_scan_view_has_target_input(qtbot):

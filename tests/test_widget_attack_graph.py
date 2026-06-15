@@ -1,5 +1,13 @@
+import gc
+import pytest
 from models import Host, Finding
 from screens.widgets.attack_graph import AttackGraph
+
+
+@pytest.fixture(autouse=True)
+def _gc_after_each():
+    yield
+    gc.collect()
 
 
 def _host(subdomain: str = None, ip: str = None, port: int = None,

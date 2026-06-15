@@ -1,5 +1,13 @@
+import gc
+import pytest
 from tool_checker import TOOLS
 from main_window import MainWindow
+
+
+@pytest.fixture(autouse=True)
+def _gc_after_each():
+    yield
+    gc.collect()
 
 
 def _all_present():

@@ -1,6 +1,14 @@
+import gc
+import pytest
 from unittest.mock import patch
 from PyQt6.QtCore import Qt
 from screens.scan_view import ScanViewScreen
+
+
+@pytest.fixture(autouse=True)
+def _gc_after_each():
+    yield
+    gc.collect()
 
 
 def test_scan_view_has_mode_toggle_buttons(qtbot, db):

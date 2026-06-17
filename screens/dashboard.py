@@ -5,9 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from tool_checker import is_critical_missing
 from screens.widgets.threat_feed import ThreatFeed
-from screens.widgets.theme import (
-    TXT, TXT2, TXT3, ACCENT, BORDER, HIGH, SEVERITY_COLORS,
-)
+from screens.widgets.theme import TXT, TXT3, HIGH, SEVERITY_COLORS
 
 
 class MetricCard(QFrame):

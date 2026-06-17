@@ -2,13 +2,9 @@ from PyQt6.QtWidgets import (
     QScrollArea, QWidget, QVBoxLayout, QFrame, QLabel,
 )
 
-_SEVERITY_COLORS = {
-    "critical": "#ff4444",
-    "high":     "#ff8800",
-    "medium":   "#ffcc00",
-    "low":      "#4488ff",
-    "info":     "#64748b",
-}
+from screens.widgets.theme import TXT, TXT3, CARD, SEVERITY_COLORS
+
+_SEVERITY_COLORS = SEVERITY_COLORS
 _LIMIT = 20
 
 
@@ -29,11 +25,11 @@ class ThreatFeed(QScrollArea):
         self.clear()
         findings = db.query_recent_findings(limit=_LIMIT)
         for f in findings:
-            color = _SEVERITY_COLORS.get(f.severity, "#64748b")
+            color = _SEVERITY_COLORS.get(f.severity, TXT3)
             card = QFrame()
             card.setStyleSheet(
                 f"QFrame {{ border-left: 3px solid {color}; "
-                f"background-color: #111827; border-radius: 3px; }}"
+                f"background-color: {CARD}; border-radius: 3px; }}"
             )
             card_layout = QVBoxLayout(card)
             card_layout.setContentsMargins(10, 5, 10, 5)
@@ -41,10 +37,10 @@ class ThreatFeed(QScrollArea):
             title_lbl = QLabel(f.title)
             title_lbl.setWordWrap(False)
             title_lbl.setStyleSheet(
-                "color: #e2e8f0; font-size: 11px; font-weight: bold;"
+                f"color: {TXT}; font-size: 11px; font-weight: bold;"
             )
             meta_lbl = QLabel(f"{f.tool}  ·  {f.created_at[11:19]}")
-            meta_lbl.setStyleSheet("color: #64748b; font-size: 9px;")
+            meta_lbl.setStyleSheet(f"color: {TXT3}; font-size: 9px;")
             card_layout.addWidget(title_lbl)
             card_layout.addWidget(meta_lbl)
             self._layout.insertWidget(0, card)

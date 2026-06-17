@@ -2,20 +2,17 @@ from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect, pyqtProper
 from PyQt6.QtWidgets import QWidget, QHBoxLayout
 from PyQt6.QtGui import QPainter, QPen, QColor, QFont
 
+from screens.widgets.theme import TXT, TXT3, BORDER, SEVERITY_COLORS
+
 _SEVERITIES = ["critical", "high", "medium", "low"]
-_COLORS = {
-    "critical": "#ff4444",
-    "high":     "#ff8800",
-    "medium":   "#ffcc00",
-    "low":      "#4488ff",
-}
+_SEVERITY_COLORS = SEVERITY_COLORS
 
 
 class _RingWidget(QWidget):
     def __init__(self, severity: str, parent=None):
         super().__init__(parent)
         self._severity = severity
-        self._color = _COLORS[severity]
+        self._color = _SEVERITY_COLORS[severity]
         self._count = 0
         self._fill = 0.0
         self._animation: QPropertyAnimation | None = None
@@ -55,7 +52,7 @@ class _RingWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRect(15, 10, 80, 80)
 
-        bg_pen = QPen(QColor("#1e2d40"))
+        bg_pen = QPen(QColor(BORDER))
         bg_pen.setWidth(12)
         bg_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(bg_pen)
@@ -70,14 +67,14 @@ class _RingWidget(QWidget):
             span = -int(self._fill * 360 * 16)
             painter.drawArc(rect, start, span)
 
-        painter.setPen(QColor("#e2e8f0"))
+        painter.setPen(QColor(TXT))
         f = QFont()
         f.setBold(True)
         f.setPointSize(16)
         painter.setFont(f)
         painter.drawText(QRect(0, 10, 110, 80), Qt.AlignmentFlag.AlignCenter, str(self._count))
 
-        painter.setPen(QColor("#64748b"))
+        painter.setPen(QColor(TXT3))
         f2 = QFont()
         f2.setPointSize(8)
         painter.setFont(f2)

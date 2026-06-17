@@ -4,15 +4,11 @@ from PyQt6.QtWidgets import (
     QScrollArea, QWidget, QVBoxLayout, QFrame, QLabel, QGraphicsOpacityEffect,
 )
 
+from screens.widgets.theme import TXT, TXT3, CARD, ACCENT, SEVERITY_COLORS
+
 _MAX_CARDS = 200
 
-_SEVERITY_COLORS = {
-    "critical": "#ff4444",
-    "high":     "#ff8800",
-    "medium":   "#ffcc00",
-    "low":      "#4488ff",
-    "info":     "#64748b",
-}
+_SEVERITY_COLORS = SEVERITY_COLORS
 
 
 class _Card(QFrame):
@@ -22,8 +18,8 @@ class _Card(QFrame):
         self.title = title
         self.setFixedHeight(70)
         self.setStyleSheet(
-            f"QFrame {{ border-left: 3px solid {border_color};"
-            f" background-color: #111827; border-radius: 4px; }}"
+            f"QFrame {{ border-left: 4px solid {border_color};"
+            f" background-color: {CARD}; border-radius: 4px; }}"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 6, 10, 6)
@@ -31,17 +27,17 @@ class _Card(QFrame):
 
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
         top = QLabel(f"{tool}  ·  {ts}")
-        top.setStyleSheet("color: #64748b; font-size: 10px;")
+        top.setStyleSheet(f"color: {TXT3}; font-size: 10px;")
 
         title_label = QLabel(title)
         title_label.setWordWrap(False)
         title_label.setStyleSheet(
-            "color: #e2e8f0; font-size: 13px; font-weight: bold;"
+            f"color: {TXT}; font-size: 13px; font-weight: bold;"
         )
 
         desc_label = QLabel(description or "")
         desc_label.setMaximumHeight(26)
-        desc_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        desc_label.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
         desc_label.setWordWrap(True)
 
         layout.addWidget(top)
@@ -104,7 +100,7 @@ class FindingCards(QScrollArea):
             tool="scan",
             severity="info",
             description=f"{hosts} hosts discovered, {findings} findings",
-            border_color="#00d4ff",
+            border_color=ACCENT,
         )
         card.setMaximumHeight(70)
         self._layout.insertWidget(0, card)

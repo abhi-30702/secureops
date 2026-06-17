@@ -3,14 +3,16 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QGraphicsOpacityEffect,
 )
 
+from screens.widgets.theme import TXT, TXT3, BORDER, ACCENT, SUCCESS, CRITICAL
+
 _MAIN_CHAIN = ["subfinder", "dnsx", "naabu", "httpx", "katana", "nuclei"]
 _PARALLEL = ["nmap", "nikto", "testssl"]
 
 _DOT_COLORS = {
-    "idle":    "#2d4a6b",
-    "running": "#00d4ff",
-    "done":    "#00ff88",
-    "failed":  "#ff4444",
+    "idle":    BORDER,
+    "running": ACCENT,
+    "done":    SUCCESS,
+    "failed":  CRITICAL,
 }
 
 
@@ -34,11 +36,11 @@ class _ToolNode(QFrame):
 
         self._name_label = QLabel(name)
         self._name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._name_label.setStyleSheet("color: #e2e8f0; font-size: 9px; font-family: monospace;")
+        self._name_label.setStyleSheet(f"color: {TXT}; font-size: 9px; font-family: monospace;")
 
         self._count_label = QLabel("")
         self._count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._count_label.setStyleSheet("color: #64748b; font-size: 9px;")
+        self._count_label.setStyleSheet(f"color: {TXT3}; font-size: 9px;")
         self._count_label.setVisible(False)
 
         layout.addWidget(self._dot)
@@ -112,7 +114,7 @@ class PipelineTracker(QWidget):
             main_row.addWidget(node)
             if name != _MAIN_CHAIN[-1]:
                 arr = QLabel("→")
-                arr.setStyleSheet("color: #2d4a6b; font-size: 12px;")
+                arr.setStyleSheet(f"color: {BORDER}; font-size: 12px;")
                 main_row.addWidget(arr)
 
         parallel_row = QHBoxLayout()

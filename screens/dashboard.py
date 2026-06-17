@@ -1,4 +1,5 @@
-from PyQt6.QtCore import Qt
+from datetime import datetime, timezone
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
 )
@@ -35,19 +36,37 @@ class MetricCard(QFrame):
         self._value_label.setText(str(n))
 
 
-class SeverityStrip(QWidget):
+class LiveSeverityStrip(QWidget):
+    _COLORS = {
+        "critical": "#ff3d57",
+        "high":     "#ff8800",
+        "medium":   "#ffb300",
+        "low":      "#4488ff",
+    }
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        self._labels: dict[str, QLabel] = {}
         layout = QHBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(24)
-        for color, label in [
-            ("#ff4444", "Critical"), ("#ff8800", "High"),
-            ("#ffcc00", "Medium"), ("#4488ff", "Low"),
-        ]:
-            dot = QLabel(f"<span style='color:{color}'>●</span>  {label}  <b>0</b>")
-            dot.setTextFormat(Qt.TextFormat.RichText)
-            layout.addWidget(dot)
+        for sev, color in self._COLORS.items():
+            lbl = QLabel()
+            lbl.setTextFormat(Qt.TextFormat.RichText)
+            self._labels[sev] = lbl
+            layout.addWidget(lbl)
+        self._refresh_labels()
+
+    def set_counts(self, critical: int = 0, high: int = 0, medium: int = 0, low: int = 0) -> None:
+        self._counts = {"critical": critical, "high": high, "medium": medium, "low": low}
+        self._refresh_labels()
+
+    def _refresh_labels(self) -> None:
+        for sev, lbl in self._labels.items():
+            color = self._COLORS[sev]
+            count = self._counts[sev]
+            lbl.setText(f"<span style='color:{color}'>●</span>  {sev.capitalize()}  <b>{count}</b>")
 
 
 def _placeholder_panel(label_text: str) -> QFrame:
@@ -70,8 +89,12 @@ class DashboardScreen(QWidget):
         self._db = db
         self._metric_cards: list[MetricCard] = []
         self._warning_banner: QLabel | None = None
-        self._severity_strip: SeverityStrip | None = None
+        self._severity_strip: LiveSeverityStrip | None = None
         self._threat_feed: ThreatFeed | None = None
+        self._schedule_panel = None
+        self._delta_panel = None
+        self._updated_label: QLabel | None = None
+        self._timer: QTimer | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -95,18 +118,35 @@ class DashboardScreen(QWidget):
         layout.addLayout(cards_row)
 
         middle_row = QHBoxLayout()
-        middle_row.addWidget(
-            _placeholder_panel("Attack Surface Graph\nLive in Phase 6"), stretch=1
-        )
+        if self._db:
+            from screens.widgets.schedule_panel import SchedulePanel
+            self._schedule_panel = SchedulePanel(db=self._db)
+            middle_row.addWidget(self._schedule_panel, stretch=1)
+        else:
+            middle_row.addWidget(
+                _placeholder_panel("Scheduled Scans\n(DB not available)"), stretch=1
+            )
         self._threat_feed = ThreatFeed()
         middle_row.addWidget(self._threat_feed, stretch=1)
         layout.addLayout(middle_row)
 
-        self._severity_strip = SeverityStrip()
+        self._severity_strip = LiveSeverityStrip()
         layout.addWidget(self._severity_strip)
+
+        from screens.widgets.delta_panel import DeltaPanel
+        self._delta_panel = DeltaPanel()
+        layout.addWidget(self._delta_panel)
+
+        self._updated_label = QLabel("")
+        self._updated_label.setStyleSheet("color: #3d5a7a; font-size: 10px;")
+        layout.addWidget(self._updated_label)
+
         layout.addStretch()
 
         if self._db:
+            self._timer = QTimer(self)
+            self._timer.timeout.connect(self.refresh)
+            self._timer.start(30_000)
             self.refresh()
 
     def refresh(self) -> None:
@@ -131,3 +171,21 @@ class DashboardScreen(QWidget):
             card_map["Findings"].set_value(n_findings)
 
         self._threat_feed.refresh(self._db)
+
+        rows = self._db._conn.execute(
+            "SELECT severity, COUNT(*) as n FROM findings GROUP BY severity"
+        ).fetchall()
+        sev_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        for row in rows:
+            key = row["severity"]
+            if key in sev_counts:
+                sev_counts[key] = row["n"]
+        if self._severity_strip:
+            self._severity_strip.set_counts(**sev_counts)
+
+        if self._schedule_panel:
+            self._schedule_panel.refresh()
+
+        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        if self._updated_label:
+            self._updated_label.setText(f"Updated {ts}")

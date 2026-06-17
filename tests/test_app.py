@@ -1,4 +1,4 @@
-from app import create_app, DARK_QSS
+from app import create_app, CHIFFON_QSS
 
 
 def test_create_app_returns_qapplication(qapp):
@@ -13,9 +13,9 @@ def test_create_app_idempotent(qapp):
     assert app1 is app2
 
 
-def test_dark_qss_contains_background_color():
-    assert "#0a0e1a" in DARK_QSS
+def test_chiffon_qss_contains_background_color():
+    assert "#FEFACD" in CHIFFON_QSS
 
 
-def test_dark_qss_contains_accent_cyan():
-    assert "#00d4ff" in DARK_QSS
+def test_chiffon_qss_contains_accent_purple():
+    assert "#5F4A8B" in CHIFFON_QSS

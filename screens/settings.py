@@ -22,7 +22,9 @@ class SettingsScreen(QWidget):
         self._schedules_layout: QVBoxLayout | None = None
         self._subnet_input: QLineEdit | None = None
         self._advisor_enabled_cb: QCheckBox | None = None
+        self._advisor_backend_combo: QComboBox | None = None
         self._api_key_input: QLineEdit | None = None
+        self._ollama_model_input: QLineEdit | None = None
         self._advisor_save_btn: QPushButton | None = None
         self._setup_ui()
 
@@ -134,22 +136,44 @@ class SettingsScreen(QWidget):
         advisor_label.setStyleSheet("color: #64748b; font-size: 10px; letter-spacing: 1px;")
         layout.addWidget(advisor_label)
 
-        self._advisor_enabled_cb = QCheckBox("Enable AI Advisor (Google Gemini)")
+        self._advisor_enabled_cb = QCheckBox("Enable AI Advisor")
         self._advisor_enabled_cb.setStyleSheet("color: #e2e8f0;")
         enabled = self._db is not None and self._db.get_setting("ai_advisor_enabled") == "1"
         self._advisor_enabled_cb.setChecked(enabled)
         self._advisor_enabled_cb.toggled.connect(self._on_advisor_toggled)
         layout.addWidget(self._advisor_enabled_cb)
 
+        backend_row = QHBoxLayout()
+        backend_lbl = QLabel("Backend:")
+        backend_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        self._advisor_backend_combo = QComboBox()
+        self._advisor_backend_combo.addItems(["Gemini (cloud)", "Ollama (local)"])
+        saved_backend = (self._db.get_setting("advisor_backend") if self._db else None) or "gemini"
+        self._advisor_backend_combo.setCurrentIndex(0 if saved_backend == "gemini" else 1)
+        self._advisor_backend_combo.setEnabled(enabled)
+        self._advisor_backend_combo.currentIndexChanged.connect(self._on_backend_changed)
+        backend_row.addWidget(backend_lbl)
+        backend_row.addWidget(self._advisor_backend_combo)
+        backend_row.addStretch()
+        layout.addLayout(backend_row)
+
         self._api_key_input = QLineEdit()
         self._api_key_input.setPlaceholderText("Gemini API key")
         self._api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self._api_key_input.setEnabled(enabled)
         if self._db:
             saved_key = self._db.get_setting("gemini_api_key")
             if saved_key:
                 self._api_key_input.setText(saved_key)
         layout.addWidget(self._api_key_input)
+
+        self._ollama_model_input = QLineEdit()
+        self._ollama_model_input.setPlaceholderText("Ollama model (e.g. llama3, mistral)")
+        if self._db:
+            saved_model = self._db.get_setting("ollama_model")
+            self._ollama_model_input.setText(saved_model or "llama3")
+        layout.addWidget(self._ollama_model_input)
+
+        self._sync_backend_inputs(enabled)
 
         save_row = QHBoxLayout()
         self._advisor_save_btn = QPushButton("Save")
@@ -159,9 +183,30 @@ class SettingsScreen(QWidget):
         save_row.addStretch()
         layout.addLayout(save_row)
 
-    def _on_advisor_toggled(self, checked: bool) -> None:
+    def _sync_backend_inputs(self, enabled: bool) -> None:
+        if not enabled:
+            if self._api_key_input:
+                self._api_key_input.setEnabled(False)
+            if self._ollama_model_input:
+                self._ollama_model_input.setEnabled(False)
+            return
+        is_ollama = (
+            self._advisor_backend_combo is not None
+            and self._advisor_backend_combo.currentIndex() == 1
+        )
         if self._api_key_input:
-            self._api_key_input.setEnabled(checked)
+            self._api_key_input.setEnabled(not is_ollama)
+        if self._ollama_model_input:
+            self._ollama_model_input.setEnabled(is_ollama)
+
+    def _on_advisor_toggled(self, checked: bool) -> None:
+        if self._advisor_backend_combo:
+            self._advisor_backend_combo.setEnabled(checked)
+        self._sync_backend_inputs(checked)
+
+    def _on_backend_changed(self, _index: int) -> None:
+        enabled = self._advisor_enabled_cb.isChecked() if self._advisor_enabled_cb else False
+        self._sync_backend_inputs(enabled)
 
     def _on_save_advisor_settings(self) -> None:
         if not self._db:
@@ -170,7 +215,16 @@ class SettingsScreen(QWidget):
             "ai_advisor_enabled",
             "1" if self._advisor_enabled_cb.isChecked() else "0",
         )
-        self._db.set_setting("gemini_api_key", self._api_key_input.text().strip())
+        backend = (
+            "ollama"
+            if self._advisor_backend_combo and self._advisor_backend_combo.currentIndex() == 1
+            else "gemini"
+        )
+        self._db.set_setting("advisor_backend", backend)
+        if self._api_key_input:
+            self._db.set_setting("gemini_api_key", self._api_key_input.text().strip())
+        if self._ollama_model_input:
+            self._db.set_setting("ollama_model", self._ollama_model_input.text().strip() or "llama3")
 
     def _build_subnet_section(self, layout: QVBoxLayout) -> None:
         subnet_label = QLabel("INTERNAL SUBNET RANGES")

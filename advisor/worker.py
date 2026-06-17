@@ -63,10 +63,17 @@ class AdvisorWorker(QThread):
                 return
 
             from advisor.prompt_builder import PromptBuilder
-            from advisor.gemini_client import GeminiClient
 
             prompt = PromptBuilder().build(scan, client, hosts, findings)
-            response = GeminiClient(self._api_key).generate(prompt)
+
+            backend = self._db.get_setting("advisor_backend") or "gemini"
+            if backend == "ollama":
+                from advisor.ollama_client import OllamaClient
+                model = self._db.get_setting("ollama_model") or "llama3"
+                response = OllamaClient(model=model).generate(prompt)
+            else:
+                from advisor.gemini_client import GeminiClient
+                response = GeminiClient(self._api_key).generate(prompt)
 
             if self._cancelled:
                 return

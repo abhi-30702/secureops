@@ -60,7 +60,7 @@ class FindingCards(QScrollArea):
 
     def add_finding(self, finding):
         self._trim_if_needed()
-        color = _SEVERITY_COLORS.get(finding.severity, "#64748b")
+        color = _SEVERITY_COLORS.get(finding.severity, TXT3)
         card = _Card(
             title=finding.title,
             tool=finding.tool,

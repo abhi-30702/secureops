@@ -6,14 +6,11 @@ from PyQt6.QtWidgets import (
     QScrollArea, QFrame, QFileDialog, QMessageBox,
 )
 from PyQt6.QtGui import QDesktopServices
+from screens.widgets.theme import (
+    TXT, TXT2, TXT3, ACCENT, CARD, CRITICAL, SUCCESS, SEVERITY_COLORS,
+)
 
-_SEVERITY_COLORS = {
-    "critical": "#ff4444",
-    "high":     "#ff8800",
-    "medium":   "#ffcc00",
-    "low":      "#4488ff",
-    "info":     "#64748b",
-}
+_SEVERITY_COLORS = SEVERITY_COLORS
 _SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
 
 
@@ -40,7 +37,7 @@ class ReportScreen(QWidget):
 
         top_bar = QHBoxLayout()
         title = QLabel("Security Report")
-        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #e2e8f0;")
+        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {TXT};")
         self._export_btn = QPushButton("Export PDF")
         self._export_btn.setEnabled(False)
         self._export_btn.setFixedWidth(130)
@@ -66,7 +63,7 @@ class ReportScreen(QWidget):
         self._clear_content()
         ph = QLabel("Run a scan to generate a report.")
         ph.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ph.setStyleSheet("color: #64748b; font-size: 14px;")
+        ph.setStyleSheet(f"color: {TXT3}; font-size: 14px;")
         self._content_layout.addStretch()
         self._content_layout.addWidget(ph)
         self._content_layout.addStretch()
@@ -126,7 +123,7 @@ class ReportScreen(QWidget):
         layout.setSpacing(4)
 
         header = QLabel("Summary")
-        header.setStyleSheet("font-size: 14px; font-weight: bold; color: #e2e8f0;")
+        header.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {TXT};")
         layout.addWidget(header)
 
         duration = "—"
@@ -149,7 +146,7 @@ class ReportScreen(QWidget):
             ("Total findings", str(len(findings))),
         ]:
             row = QLabel(f"<b>{label}:</b>  {value}")
-            row.setStyleSheet("color: #cbd5e1; font-size: 11px;")
+            row.setStyleSheet(f"color: {TXT2}; font-size: 11px;")
             layout.addWidget(row)
 
         return panel
@@ -162,7 +159,7 @@ class ReportScreen(QWidget):
         layout.setSpacing(6)
 
         header = QLabel("Severity Breakdown")
-        header.setStyleSheet("font-size: 14px; font-weight: bold; color: #e2e8f0;")
+        header.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {TXT};")
         layout.addWidget(header)
 
         counts: dict[str, int] = {}
@@ -175,9 +172,9 @@ class ReportScreen(QWidget):
         row_layout.setSpacing(16)
         for sev in _SEVERITY_ORDER:
             n = counts.get(sev, 0)
-            color = _SEVERITY_COLORS.get(sev, "#64748b")
+            color = _SEVERITY_COLORS.get(sev, TXT3)
             lbl = QLabel(f'<span style="color:{color}">●</span> {sev.capitalize()}: <b>{n}</b>')
-            lbl.setStyleSheet("color: #cbd5e1; font-size: 11px;")
+            lbl.setStyleSheet(f"color: {TXT2}; font-size: 11px;")
             row_layout.addWidget(lbl)
         row_layout.addStretch()
         layout.addWidget(row_widget)
@@ -191,12 +188,12 @@ class ReportScreen(QWidget):
         layout.setSpacing(8)
 
         header = QLabel("Findings")
-        header.setStyleSheet("font-size: 14px; font-weight: bold; color: #e2e8f0;")
+        header.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {TXT};")
         layout.addWidget(header)
 
         if not findings:
             lbl = QLabel("No findings recorded.")
-            lbl.setStyleSheet("color: #64748b; font-size: 11px;")
+            lbl.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
             layout.addWidget(lbl)
             return panel
 
@@ -208,7 +205,7 @@ class ReportScreen(QWidget):
         for sev in _SEVERITY_ORDER:
             if not by_sev[sev]:
                 continue
-            color = _SEVERITY_COLORS.get(sev, "#64748b")
+            color = _SEVERITY_COLORS.get(sev, TXT3)
             sev_label = QLabel(
                 f'<span style="color:{color}; font-weight:bold;">{sev.upper()} ({len(by_sev[sev])})</span>'
             )
@@ -218,23 +215,23 @@ class ReportScreen(QWidget):
                 card = QFrame()
                 card.setStyleSheet(
                     f"QFrame {{ border-left: 3px solid {color}; "
-                    f"background-color: #0f172a; border-radius: 3px; }}"
+                    f"background-color: {CARD}; border-radius: 3px; }}"
                 )
                 card_layout = QVBoxLayout(card)
                 card_layout.setContentsMargins(10, 6, 10, 6)
                 card_layout.setSpacing(2)
                 title_lbl = QLabel(f.title)
                 title_lbl.setStyleSheet(
-                    "color: #e2e8f0; font-size: 12px; font-weight: bold;"
+                    f"color: {TXT}; font-size: 12px; font-weight: bold;"
                 )
                 tool_lbl = QLabel(f"Tool: {f.tool}")
-                tool_lbl.setStyleSheet("color: #64748b; font-size: 10px;")
+                tool_lbl.setStyleSheet(f"color: {TXT3}; font-size: 10px;")
                 card_layout.addWidget(title_lbl)
                 card_layout.addWidget(tool_lbl)
                 if f.description:
                     desc_lbl = QLabel(f.description[:200])
                     desc_lbl.setWordWrap(True)
-                    desc_lbl.setStyleSheet("color: #94a3b8; font-size: 10px;")
+                    desc_lbl.setStyleSheet(f"color: {TXT2}; font-size: 10px;")
                     card_layout.addWidget(desc_lbl)
                 layout.addWidget(card)
 
@@ -248,7 +245,7 @@ class ReportScreen(QWidget):
         layout.setSpacing(8)
 
         header = QLabel("Log Analysis Findings")
-        header.setStyleSheet("font-size: 14px; font-weight: bold; color: #e2e8f0;")
+        header.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {TXT};")
         layout.addWidget(header)
 
         by_sev: dict[str, list] = {s: [] for s in _SEVERITY_ORDER}
@@ -259,7 +256,7 @@ class ReportScreen(QWidget):
         for sev in _SEVERITY_ORDER:
             if not by_sev[sev]:
                 continue
-            color = _SEVERITY_COLORS.get(sev, "#64748b")
+            color = _SEVERITY_COLORS.get(sev, TXT3)
             sev_label = QLabel(
                 f'<span style="color:{color}; font-weight:bold;">{sev.upper()} ({len(by_sev[sev])})</span>'
             )
@@ -269,18 +266,18 @@ class ReportScreen(QWidget):
                 card = QFrame()
                 card.setStyleSheet(
                     f"QFrame {{ border-left: 3px solid {color}; "
-                    f"background-color: #0f172a; border-radius: 3px; }}"
+                    f"background-color: {CARD}; border-radius: 3px; }}"
                 )
                 card_layout = QVBoxLayout(card)
                 card_layout.setContentsMargins(10, 6, 10, 6)
                 card_layout.setSpacing(2)
                 title_lbl = QLabel(f.title)
-                title_lbl.setStyleSheet("color: #e2e8f0; font-size: 12px; font-weight: bold;")
+                title_lbl.setStyleSheet(f"color: {TXT}; font-size: 12px; font-weight: bold;")
                 card_layout.addWidget(title_lbl)
                 if f.description:
                     desc_lbl = QLabel(f.description[:200])
                     desc_lbl.setWordWrap(True)
-                    desc_lbl.setStyleSheet("color: #94a3b8; font-size: 10px;")
+                    desc_lbl.setStyleSheet(f"color: {TXT2}; font-size: 10px;")
                     card_layout.addWidget(desc_lbl)
                 layout.addWidget(card)
 
@@ -299,7 +296,7 @@ class ReportScreen(QWidget):
 
         header_row = QHBoxLayout()
         header = QLabel("AI Advisor")
-        header.setStyleSheet("font-size: 14px; font-weight: bold; color: #e2e8f0;")
+        header.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {TXT};")
         header_row.addWidget(header)
         header_row.addStretch()
         panel_layout.addLayout(header_row)
@@ -309,7 +306,7 @@ class ReportScreen(QWidget):
 
         if not enabled or not api_key:
             info = QLabel("AI Advisor disabled — enable in Settings.")
-            info.setStyleSheet("color: #64748b; font-size: 11px;")
+            info.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
             panel_layout.addWidget(info)
             self._content_layout.addWidget(panel)
             return
@@ -320,13 +317,13 @@ class ReportScreen(QWidget):
         header_row.addWidget(self._run_advisor_btn)
 
         self._advisor_status = QLabel("")
-        self._advisor_status.setStyleSheet("color: #64748b; font-size: 11px;")
+        self._advisor_status.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
         panel_layout.addWidget(self._advisor_status)
 
         for tier, label in (("immediate", "IMMEDIATE"), ("short_term", "SHORT-TERM"),
                              ("preventive", "PREVENTIVE")):
             sub_header = QLabel(label)
-            sub_header.setStyleSheet("color: #94a3b8; font-size: 10px; letter-spacing: 1px;")
+            sub_header.setStyleSheet(f"color: {TXT2}; font-size: 10px; letter-spacing: 1px;")
             sub_header.hide()
             panel_layout.addWidget(sub_header)
             tier_box = QVBoxLayout()
@@ -335,7 +332,7 @@ class ReportScreen(QWidget):
             self._tier_layouts[tier] = {"header": sub_header, "layout": tier_box}
 
         disclaimer = QLabel("AI-generated — review before sending to client.")
-        disclaimer.setStyleSheet("color: #64748b; font-size: 10px; font-style: italic;")
+        disclaimer.setStyleSheet(f"color: {TXT3}; font-size: 10px; font-style: italic;")
         panel_layout.addWidget(disclaimer)
 
         self._content_layout.addWidget(panel)
@@ -408,8 +405,8 @@ class ReportScreen(QWidget):
     def _build_item_card(self, item) -> QFrame:
         card = QFrame()
         card.setStyleSheet(
-            "QFrame { border-left: 3px solid #38bdf8;"
-            " background-color: #0f172a; border-radius: 3px; }"
+            f"QFrame {{ border-left: 3px solid {ACCENT};"
+            f" background-color: {CARD}; border-radius: 3px; }}"
         )
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(10, 6, 10, 6)
@@ -417,23 +414,23 @@ class ReportScreen(QWidget):
 
         text_lbl = QLabel(item.text)
         text_lbl.setWordWrap(True)
-        text_lbl.setStyleSheet("color: #e2e8f0; font-size: 11px;")
+        text_lbl.setStyleSheet(f"color: {TXT}; font-size: 11px;")
         card_layout.addWidget(text_lbl)
 
         btn_row = QHBoxLayout()
         accept_btn = QPushButton("✓ Accept")
         accept_btn.setFixedWidth(80)
         accept_btn.setStyleSheet(
-            "QPushButton { color: #00ff88; border: 1px solid #00ff88;"
-            " border-radius: 3px; padding: 2px 6px; font-size: 10px; }"
-            " QPushButton:hover { background-color: #00ff8820; }"
+            f"QPushButton {{ color: {SUCCESS}; border: 1px solid {SUCCESS};"
+            f" border-radius: 3px; padding: 2px 6px; font-size: 10px; }}"
+            f" QPushButton:hover {{ background-color: {SUCCESS}20; }}"
         )
         discard_btn = QPushButton("✗ Discard")
         discard_btn.setFixedWidth(80)
         discard_btn.setStyleSheet(
-            "QPushButton { color: #ff4444; border: 1px solid #ff4444;"
-            " border-radius: 3px; padding: 2px 6px; font-size: 10px; }"
-            " QPushButton:hover { background-color: #ff444420; }"
+            f"QPushButton {{ color: {CRITICAL}; border: 1px solid {CRITICAL};"
+            f" border-radius: 3px; padding: 2px 6px; font-size: 10px; }}"
+            f" QPushButton:hover {{ background-color: {CRITICAL}20; }}"
         )
         accept_btn.clicked.connect(
             lambda: self._accept_item(item, card, accept_btn, discard_btn)
@@ -450,8 +447,8 @@ class ReportScreen(QWidget):
         if self._db and item.id is not None:
             self._db.update_advisory_item_accepted(item.id, True)
         card.setStyleSheet(
-            "QFrame { border-left: 3px solid #00ff88;"
-            " background-color: #0a1628; border-radius: 3px; }"
+            f"QFrame {{ border-left: 3px solid {SUCCESS};"
+            f" background-color: {CARD}; border-radius: 3px; }}"
         )
         accept_btn.setEnabled(False)
         discard_btn.setEnabled(False)

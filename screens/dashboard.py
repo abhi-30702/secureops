@@ -5,6 +5,9 @@ from PyQt6.QtWidgets import (
 )
 from tool_checker import is_critical_missing
 from screens.widgets.threat_feed import ThreatFeed
+from screens.widgets.theme import (
+    TXT, TXT2, TXT3, ACCENT, BORDER, HIGH, SEVERITY_COLORS,
+)
 
 
 class MetricCard(QFrame):
@@ -20,13 +23,13 @@ class MetricCard(QFrame):
         title_label = QLabel(title)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet(
-            "color: #64748b; font-size: 11px; text-transform: uppercase;"
+            f"color: {TXT3}; font-size: 11px; text-transform: uppercase;"
         )
 
         self._value_label = QLabel("0")
         self._value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._value_label.setStyleSheet(
-            "font-size: 28px; font-weight: bold; color: #e2e8f0;"
+            f"font-size: 28px; font-weight: bold; color: {TXT};"
         )
 
         layout.addWidget(title_label)
@@ -37,13 +40,6 @@ class MetricCard(QFrame):
 
 
 class LiveSeverityStrip(QWidget):
-    _COLORS = {
-        "critical": "#ff3d57",
-        "high":     "#ff8800",
-        "medium":   "#ffb300",
-        "low":      "#4488ff",
-    }
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self._counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
@@ -51,7 +47,7 @@ class LiveSeverityStrip(QWidget):
         layout = QHBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(24)
-        for sev, color in self._COLORS.items():
+        for sev in ["critical", "high", "medium", "low"]:
             lbl = QLabel()
             lbl.setTextFormat(Qt.TextFormat.RichText)
             self._labels[sev] = lbl
@@ -64,7 +60,7 @@ class LiveSeverityStrip(QWidget):
 
     def _refresh_labels(self) -> None:
         for sev, lbl in self._labels.items():
-            color = self._COLORS[sev]
+            color = SEVERITY_COLORS.get(sev, TXT3)
             count = self._counts[sev]
             lbl.setText(f"<span style='color:{color}'>●</span>  {sev.capitalize()}  <b>{count}</b>")
 
@@ -76,7 +72,7 @@ def _placeholder_panel(label_text: str) -> QFrame:
     layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
     label = QLabel(label_text)
     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    label.setStyleSheet("color: #64748b; font-size: 12px;")
+    label.setStyleSheet(f"color: {TXT3}; font-size: 12px;")
     label.setWordWrap(True)
     layout.addWidget(label)
     return frame
@@ -104,8 +100,8 @@ class DashboardScreen(QWidget):
 
         self._warning_banner = QLabel("⚠  Critical tools missing — check Settings")
         self._warning_banner.setStyleSheet(
-            "background-color: #3d2800; color: #ffaa00; "
-            "padding: 6px 12px; border: 1px solid #ffaa00; border-radius: 4px;"
+            f"background-color: #FFF0D0; color: {HIGH}; "
+            f"padding: 6px 12px; border: 1px solid {HIGH}; border-radius: 4px;"
         )
         self._warning_banner.setVisible(is_critical_missing(self._tool_results))
         layout.addWidget(self._warning_banner)
@@ -138,7 +134,7 @@ class DashboardScreen(QWidget):
         layout.addWidget(self._delta_panel)
 
         self._updated_label = QLabel("")
-        self._updated_label.setStyleSheet("color: #3d5a7a; font-size: 10px;")
+        self._updated_label.setStyleSheet(f"color: {TXT3}; font-size: 10px;")
         layout.addWidget(self._updated_label)
 
         layout.addStretch()

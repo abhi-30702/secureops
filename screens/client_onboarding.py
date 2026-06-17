@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont
 from db import DB
-from screens.widgets.theme import TXT, TXT2, ACCENT, BORDER, SUCCESS, CRITICAL
+from screens.widgets.theme import TXT, ACCENT, BORDER, SUCCESS
 
 _FIREWALL_OPTS = ["None", "pfSense", "Cisco ASA", "Fortinet", "Palo Alto", "Other"]
 

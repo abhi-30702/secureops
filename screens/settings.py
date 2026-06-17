@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 from datetime import datetime, timezone
 from models import Schedule
 from tool_checker import TOOLS, CRITICAL_TOOLS
-from screens.widgets.theme import TXT, TXT2, TXT3, ACCENT, CRITICAL, HIGH, SUCCESS
+from screens.widgets.theme import TXT, TXT2, TXT3, CRITICAL, HIGH, SUCCESS
 
 _COLOR_CRITICAL = HIGH
 

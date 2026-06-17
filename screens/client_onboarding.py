@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont
 from db import DB
+from screens.widgets.theme import TXT, TXT2, ACCENT, BORDER, SUCCESS, CRITICAL
 
 _FIREWALL_OPTS = ["None", "pfSense", "Cisco ASA", "Fortinet", "Palo Alto", "Other"]
 
@@ -29,7 +30,7 @@ class ClientOnboardingScreen(QWidget):
         left.setSpacing(8)
         hdr = QLabel("Companies")
         hdr.setFont(QFont("DM Sans", 14, QFont.Weight.Bold))
-        hdr.setStyleSheet("color: #00e5ff;")
+        hdr.setStyleSheet(f"color: {ACCENT};")
         left.addWidget(hdr)
 
         self._company_list = QListWidget()
@@ -53,7 +54,7 @@ class ClientOnboardingScreen(QWidget):
         # Divider
         div = QFrame()
         div.setFrameShape(QFrame.Shape.VLine)
-        div.setStyleSheet("color: #0d2440;")
+        div.setStyleSheet(f"color: {BORDER};")
         root.addWidget(div)
 
         # Right panel: edit form
@@ -63,7 +64,7 @@ class ClientOnboardingScreen(QWidget):
 
         form_hdr = QLabel("Company Details")
         form_hdr.setFont(QFont("DM Sans", 13, QFont.Weight.Bold))
-        form_hdr.setStyleSheet("color: #e2eaf4;")
+        form_hdr.setStyleSheet(f"color: {TXT};")
         right.addWidget(form_hdr)
 
         form = QFormLayout()
@@ -101,7 +102,7 @@ class ClientOnboardingScreen(QWidget):
         right.addWidget(self._save_btn)
 
         self._status_label = QLabel("")
-        self._status_label.setStyleSheet("color: #00ff88; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {SUCCESS}; font-size: 11px;")
         right.addWidget(self._status_label)
 
         right.addStretch()

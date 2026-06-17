@@ -6,8 +6,9 @@ from PyQt6.QtWidgets import (
 from datetime import datetime, timezone
 from models import Schedule
 from tool_checker import TOOLS, CRITICAL_TOOLS
+from screens.widgets.theme import TXT, TXT2, TXT3, ACCENT, CRITICAL, HIGH, SUCCESS
 
-_COLOR_CRITICAL = "#ff8800"
+_COLOR_CRITICAL = HIGH
 
 
 class SettingsScreen(QWidget):
@@ -34,11 +35,11 @@ class SettingsScreen(QWidget):
         layout.setSpacing(16)
 
         title = QLabel("Settings")
-        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #e2e8f0;")
+        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {TXT};")
         layout.addWidget(title)
 
         section_label = QLabel("TOOL STATUS")
-        section_label.setStyleSheet("color: #64748b; font-size: 10px; letter-spacing: 1px;")
+        section_label.setStyleSheet(f"color: {TXT3}; font-size: 10px; letter-spacing: 1px;")
         layout.addWidget(section_label)
 
         scroll = QScrollArea()
@@ -71,7 +72,7 @@ class SettingsScreen(QWidget):
         layout.addWidget(save_btn)
 
         sched_label = QLabel("SCHEDULED SCANS")
-        sched_label.setStyleSheet("color: #64748b; font-size: 10px; letter-spacing: 1px;")
+        sched_label.setStyleSheet(f"color: {TXT3}; font-size: 10px; letter-spacing: 1px;")
         layout.addWidget(sched_label)
 
         sched_input_row = QHBoxLayout()
@@ -128,16 +129,16 @@ class SettingsScreen(QWidget):
                 f"{sched.target}  ·  Every {sched.interval_h}h  ·  "
                 f"{'Enabled' if sched.enabled else 'Disabled'}"
             )
-            row.setStyleSheet("color: #cbd5e1; font-size: 11px;")
+            row.setStyleSheet(f"color: {TXT2}; font-size: 11px;")
             self._schedules_layout.addWidget(row)
 
     def _build_advisor_section(self, layout: QVBoxLayout) -> None:
         advisor_label = QLabel("AI ADVISOR")
-        advisor_label.setStyleSheet("color: #64748b; font-size: 10px; letter-spacing: 1px;")
+        advisor_label.setStyleSheet(f"color: {TXT3}; font-size: 10px; letter-spacing: 1px;")
         layout.addWidget(advisor_label)
 
         self._advisor_enabled_cb = QCheckBox("Enable AI Advisor")
-        self._advisor_enabled_cb.setStyleSheet("color: #e2e8f0;")
+        self._advisor_enabled_cb.setStyleSheet(f"color: {TXT};")
         enabled = self._db is not None and self._db.get_setting("ai_advisor_enabled") == "1"
         self._advisor_enabled_cb.setChecked(enabled)
         self._advisor_enabled_cb.toggled.connect(self._on_advisor_toggled)
@@ -145,7 +146,7 @@ class SettingsScreen(QWidget):
 
         backend_row = QHBoxLayout()
         backend_lbl = QLabel("Backend:")
-        backend_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        backend_lbl.setStyleSheet(f"color: {TXT2}; font-size: 11px;")
         self._advisor_backend_combo = QComboBox()
         self._advisor_backend_combo.addItems(["Gemini (cloud)", "Ollama (local)"])
         saved_backend = (self._db.get_setting("advisor_backend") if self._db else None) or "gemini"
@@ -228,7 +229,7 @@ class SettingsScreen(QWidget):
 
     def _build_subnet_section(self, layout: QVBoxLayout) -> None:
         subnet_label = QLabel("INTERNAL SUBNET RANGES")
-        subnet_label.setStyleSheet("color: #64748b; font-size: 10px; letter-spacing: 1px;")
+        subnet_label.setStyleSheet(f"color: {TXT3}; font-size: 10px; letter-spacing: 1px;")
         layout.addWidget(subnet_label)
 
         self._subnet_input = QLineEdit()
@@ -263,12 +264,12 @@ class SettingsScreen(QWidget):
 
         status_dot = QLabel("✓" if present else "✗")
         status_dot.setStyleSheet(
-            f"color: {'#00ff88' if present else '#ff4444'}; font-size: 14px;"
+            f"color: {SUCCESS if present else CRITICAL}; font-size: 14px;"
         )
         status_dot.setFixedWidth(20)
 
         name_label = QLabel(tool)
-        name_label.setStyleSheet("color: #e2e8f0; font-family: monospace;")
+        name_label.setStyleSheet(f"color: {TXT}; font-family: monospace;")
 
         if is_critical:
             critical_tag = QLabel("CRITICAL")

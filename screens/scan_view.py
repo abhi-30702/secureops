@@ -10,6 +10,7 @@ from screens.widgets.attack_graph import AttackGraph
 from screens.widgets.severity_rings import SeverityRings
 from screens.widgets.finding_cards import FindingCards
 from screens.widgets.company_selector import CompanySelector
+from screens.widgets.theme import TXT, TXT3, CARD
 
 
 class ScanViewScreen(QWidget):
@@ -90,11 +91,11 @@ class ScanViewScreen(QWidget):
         layout.addLayout(top_bar)
 
         self._status_label = QLabel("Ready")
-        self._status_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
         layout.addWidget(self._status_label)
 
         self._log_status_label = QLabel("")
-        self._log_status_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        self._log_status_label.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
         self._log_status_label.setVisible(False)
         layout.addWidget(self._log_status_label)
 
@@ -108,7 +109,7 @@ class ScanViewScreen(QWidget):
         self._terminal_panel.setReadOnly(True)
         self._terminal_panel.setObjectName("panel")
         self._terminal_panel.setStyleSheet(
-            "font-family: monospace; font-size: 11px; color: #00ff88; background-color: #0a0e1a;"
+            f"font-family: monospace; font-size: 11px; color: {CARD}; background-color: #2A1F45;"
         )
 
         top_splitter = QSplitter(Qt.Orientation.Horizontal)

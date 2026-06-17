@@ -27,6 +27,7 @@ class MainWindow(QMainWindow):
         self._report: ReportScreen | None = None
         self._dashboard: DashboardScreen | None = None
         self._schedule_manager = None
+        self._delta_workers: list = []
         self._setup_ui()
 
     def _setup_ui(self):
@@ -89,6 +90,13 @@ class MainWindow(QMainWindow):
         self._stack.setCurrentIndex(3)
         if self._dashboard:
             self._dashboard.refresh()
+        if self._db and self._dashboard and self._dashboard._delta_panel:
+            from workers.delta_worker import DeltaWorker
+            worker = DeltaWorker(scan_id=scan_id, db=self._db, parent=self)
+            worker.delta_ready.connect(self._dashboard._delta_panel.add_delta)
+            self._delta_workers.append(worker)
+            worker.finished.connect(lambda: self._delta_workers.remove(worker) if worker in self._delta_workers else None)
+            worker.start()
 
     def _on_scan_due(self, target: str):
         self._stack.setCurrentIndex(2)

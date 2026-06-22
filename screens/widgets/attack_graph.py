@@ -5,7 +5,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 import pyqtgraph as pg
 from screens.widgets.theme import (
-    BG, TXT2, BORDER, ACCENT, ACCENT_H, SUCCESS,
+    BG, TXT2, TXT3, BORDER, ACCENT, ACCENT_H, SUCCESS,
     CRITICAL, HIGH, MEDIUM, LOW, INFO,
 )
 

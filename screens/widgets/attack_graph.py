@@ -154,7 +154,7 @@ class AttackGraph(QWidget):
             return
         pos = np.array(self._positions, dtype=float)
         adj = np.array(self._edges, dtype=int) if self._edges else np.zeros((0, 2), dtype=int)
-        brushes = [pg.mkBrush(_NODE_COLORS.get(t, "#64748b")) for t in self._node_types]
+        brushes = [pg.mkBrush(_NODE_COLORS.get(t, TXT3)) for t in self._node_types]
         sizes = [_NODE_SIZES.get(t, 10) for t in self._node_types]
         self._graph_item.setData(
             pos=pos,

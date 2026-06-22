@@ -2,71 +2,71 @@
 import sys
 from PyQt6.QtWidgets import QApplication
 
-CHIFFON_QSS = """
+COOL_QSS = """
 QMainWindow, QDialog {
-    background-color: #FEFACD;
+    background-color: #F4F6F9;
 }
 
 QWidget {
-    background-color: #FEFACD;
-    color: #2A1F45;
+    background-color: #F4F6F9;
+    color: #1A202C;
     font-family: "Inter", "Segoe UI", sans-serif;
     font-size: 13px;
 }
 
 QWidget#sidebar {
-    background-color: #FFFEF2;
-    border-right: 1px solid #C8B8E8;
+    background-color: #FFFFFF;
+    border-right: 1px solid #D1D9E6;
 }
 
 QPushButton#nav-btn {
     background-color: transparent;
     border: none;
-    color: #9B8FC2;
+    color: #A0AEC0;
     font-size: 18px;
     padding: 8px 0px;
     text-align: center;
 }
 
 QPushButton#nav-btn:hover {
-    background-color: #C8B8E8;
-    color: #2A1F45;
+    background-color: #EEF1F6;
+    color: #1A202C;
 }
 
 QPushButton#nav-btn[active="true"] {
-    background-color: #FFFEF2;
-    color: #5F4A8B;
-    border-left: 3px solid #5F4A8B;
+    background-color: #FFFFFF;
+    color: #3D5A80;
+    border-left: 3px solid #3D5A80;
 }
 
 QFrame#panel {
-    border: 1px solid #C8B8E8;
+    border: 1px solid #D1D9E6;
     border-radius: 4px;
-    background-color: #FFFEF2;
+    background-color: #FFFFFF;
 }
 
 QWidget#status-bar-widget {
-    background-color: #FFFEF2;
-    border-top: 1px solid #C8B8E8;
+    background-color: #FFFFFF;
+    border-top: 1px solid #D1D9E6;
 }
 
 QLineEdit {
-    background-color: #F5F0DC;
-    border: 1px solid #C8B8E8;
+    background-color: #EEF1F6;
+    border: 1px solid #D1D9E6;
     border-radius: 4px;
-    color: #2A1F45;
+    color: #1A202C;
     padding: 6px 10px;
 }
 
 QLineEdit:focus {
-    border: 1px solid #5F4A8B;
+    border: 1px solid #3D5A80;
 }
 
 QComboBox {
-    background-color: #F5F0DC;
-    border: 1px solid #C8B8E8;
+    background-color: #EEF1F6;
+    border: 1px solid #D1D9E6;
     border-radius: 4px;
-    color: #2A1F45;
+    color: #1A202C;
     padding: 6px 10px;
 }
 
@@ -75,74 +75,74 @@ QComboBox::drop-down {
 }
 
 QTextEdit {
-    background-color: #F5F0DC;
-    border: 1px solid #C8B8E8;
+    background-color: #EEF1F6;
+    border: 1px solid #D1D9E6;
     border-radius: 4px;
-    color: #2A1F45;
+    color: #1A202C;
     padding: 6px;
 }
 
 QPushButton {
-    background-color: #FFFEF2;
-    border: 1px solid #C8B8E8;
+    background-color: #FFFFFF;
+    border: 1px solid #D1D9E6;
     border-radius: 4px;
-    color: #5F4A8B;
+    color: #3D5A80;
     padding: 8px 16px;
 }
 
 QPushButton:hover {
-    background-color: #8B75C2;
-    border-color: #5F4A8B;
-    color: #FEFACD;
+    background-color: #5C7FA8;
+    border-color: #3D5A80;
+    color: #FFFFFF;
 }
 
 QPushButton:disabled {
-    background-color: #F5F0DC;
-    border-color: #C8B8E8;
-    color: #9B8FC2;
+    background-color: #EEF1F6;
+    border-color: #D1D9E6;
+    color: #A0AEC0;
 }
 
 QCheckBox {
-    color: #2A1F45;
+    color: #1A202C;
 }
 
 QTableWidget {
-    background-color: #FFFEF2;
-    color: #2A1F45;
-    gridline-color: #C8B8E8;
-    border: 1px solid #C8B8E8;
+    background-color: #FFFFFF;
+    color: #1A202C;
+    gridline-color: #D1D9E6;
+    border: 1px solid #D1D9E6;
 }
 
 QTableWidget::item:selected {
-    background-color: #8B75C2;
-    color: #FEFACD;
+    background-color: #5C7FA8;
+    color: #FFFFFF;
 }
 
 QHeaderView::section {
-    background-color: #F5F0DC;
-    color: #5F4A8B;
-    border: 1px solid #C8B8E8;
+    background-color: #EEF1F6;
+    color: #3D5A80;
+    border: 1px solid #D1D9E6;
     padding: 4px;
 }
 
 QListWidget {
-    background-color: #FFFEF2;
-    border: 1px solid #C8B8E8;
-    color: #2A1F45;
+    background-color: #FFFFFF;
+    border: 1px solid #D1D9E6;
+    color: #1A202C;
 }
 
 QListWidget::item:selected {
-    background-color: #5F4A8B;
-    color: #FEFACD;
+    background-color: #3D5A80;
+    color: #FFFFFF;
 }
 
 QScrollBar:vertical {
-    background: #F5F0DC;
+    background: #EEF1F6;
     width: 8px;
 }
 
 QScrollBar::handle:vertical {
-    background: #C8B8E8;
+    background: #D1D9E6;
     border-radius: 4px;
     min-height: 20px;
 }
@@ -152,12 +152,12 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 }
 
 QScrollBar:horizontal {
-    background: #F5F0DC;
+    background: #EEF1F6;
     height: 8px;
 }
 
 QScrollBar::handle:horizontal {
-    background: #C8B8E8;
+    background: #D1D9E6;
     border-radius: 4px;
     min-width: 20px;
 }
@@ -167,7 +167,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 }
 
 QSplitter::handle {
-    background: #C8B8E8;
+    background: #D1D9E6;
 }
 """
 
@@ -178,6 +178,6 @@ def create_app(argv=None) -> QApplication:
         return existing
     app = QApplication(argv or sys.argv)
     app.setApplicationName("SecureOps")
-    app.setApplicationVersion("1.1.0")
-    app.setStyleSheet(CHIFFON_QSS)
+    app.setApplicationVersion("1.2.0")
+    app.setStyleSheet(COOL_QSS)
     return app

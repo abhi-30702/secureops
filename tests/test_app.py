@@ -1,4 +1,4 @@
-from app import create_app, CHIFFON_QSS
+from app import create_app, COOL_QSS
 
 
 def test_create_app_returns_qapplication(qapp):
@@ -13,9 +13,9 @@ def test_create_app_idempotent(qapp):
     assert app1 is app2
 
 
-def test_chiffon_qss_contains_background_color():
-    assert "#FEFACD" in CHIFFON_QSS
+def test_cool_qss_contains_background_color():
+    assert "#F4F6F9" in COOL_QSS
 
 
-def test_chiffon_qss_contains_accent_purple():
-    assert "#5F4A8B" in CHIFFON_QSS
+def test_cool_qss_contains_accent_blue():
+    assert "#3D5A80" in COOL_QSS

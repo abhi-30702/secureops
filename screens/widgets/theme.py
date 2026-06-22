@@ -1,18 +1,18 @@
-BG       = "#FEFACD"   # Lemon Chiffon — app background
-CARD     = "#FFFEF2"   # Pale Chiffon — card/panel surface
-INPUT    = "#F5F0DC"   # Deeper chiffon — input fields
-ACCENT   = "#5F4A8B"   # Ultra Violet — primary accent
-ACCENT_H = "#8B75C2"   # Soft Violet — hover states
-TXT      = "#2A1F45"   # Deep Violet — primary text
-TXT2     = "#5A7A9B"   # Steel Blue — secondary text
-TXT3     = "#9B8FC2"   # Muted Violet — placeholder/muted
-BORDER   = "#C8B8E8"   # Light Lavender — borders
-CRITICAL = "#C94A62"   # Crimson
-HIGH     = "#B35A00"   # Sienna
-MEDIUM   = "#B38B00"   # Amber Gold
-LOW      = "#5F4A8B"   # Ultra Violet (same as ACCENT)
-INFO     = "#5A7A9B"   # Steel Blue (same as TXT2)
-SUCCESS  = "#00805A"   # Forest Green
+BG       = "#F4F6F9"   # Cool white — app background
+CARD     = "#FFFFFF"   # Pure white — card/panel surface
+INPUT    = "#EEF1F6"   # Off-white — input fields
+ACCENT   = "#3D5A80"   # Slate blue — primary accent
+ACCENT_H = "#5C7FA8"   # Lighter slate — hover states
+TXT      = "#1A202C"   # Near-black — primary text
+TXT2     = "#4A5568"   # Medium grey — secondary text
+TXT3     = "#A0AEC0"   # Muted grey — placeholder/muted
+BORDER   = "#D1D9E6"   # Light grey — borders
+CRITICAL = "#E53E3E"   # Red
+HIGH     = "#DD6B20"   # Orange
+MEDIUM   = "#D69E2E"   # Amber
+LOW      = "#3D5A80"   # Slate blue (same as ACCENT)
+INFO     = "#4A5568"   # Medium grey (same as TXT2)
+SUCCESS  = "#2F855A"   # Forest green
 
 SEVERITY_COLORS = {
     "critical": CRITICAL,

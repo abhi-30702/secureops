@@ -4,17 +4,21 @@ import numpy as np
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 import pyqtgraph as pg
+from screens.widgets.theme import (
+    BG, TXT2, BORDER, ACCENT, ACCENT_H, SUCCESS,
+    CRITICAL, HIGH, MEDIUM, LOW, INFO,
+)
 
 _NODE_COLORS = {
-    "target":           "#00d4ff",
-    "subdomain":        "#4488ff",
-    "host":             "#00ff88",
-    "url":              "#64748b",
-    "finding_critical": "#ff4444",
-    "finding_high":     "#ff8800",
-    "finding_medium":   "#ffcc00",
-    "finding_low":      "#4488ff",
-    "finding_info":     "#64748b",
+    "target":           ACCENT,
+    "subdomain":        ACCENT_H,
+    "host":             SUCCESS,
+    "url":              TXT2,
+    "finding_critical": CRITICAL,
+    "finding_high":     HIGH,
+    "finding_medium":   MEDIUM,
+    "finding_low":      LOW,
+    "finding_info":     INFO,
 }
 
 _NODE_SIZES = {
@@ -52,8 +56,8 @@ class AttackGraph(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         global _PG_CONFIGURED
         if not _PG_CONFIGURED:
-            pg.setConfigOption("background", "#0a0e1a")
-            pg.setConfigOption("foreground", "#64748b")
+            pg.setConfigOption("background", BG)
+            pg.setConfigOption("foreground", TXT2)
             _PG_CONFIGURED = True
         self._view = pg.GraphicsLayoutWidget()
         self._plot = self._view.addPlot()
@@ -157,7 +161,7 @@ class AttackGraph(QWidget):
             adj=adj,
             symbolBrush=brushes,
             size=sizes,
-            pen=pg.mkPen("#1e2d40", width=1),
+            pen=pg.mkPen(BORDER, width=1),
             symbol="o",
             pxMode=True,
         )

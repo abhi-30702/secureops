@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QLabel, QScrollArea, QFrame,
 )
 from PyQt6.QtCore import Qt
+from screens.widgets.theme import TXT2, TXT3, CARD, MEDIUM, SUCCESS
 
 _MAX_CHIPS = 10
 
@@ -15,7 +16,7 @@ class DeltaPanel(QWidget):
         outer.setSpacing(6)
 
         hdr = QLabel("Delta:")
-        hdr.setStyleSheet("color: #7a9bc4; font-size: 10px;")
+        hdr.setStyleSheet(f"color: {TXT2}; font-size: 10px;")
         outer.addWidget(hdr)
 
         scroll = QScrollArea()
@@ -36,15 +37,15 @@ class DeltaPanel(QWidget):
     def add_delta(self, target: str, new_count: int, resolved_count: int) -> None:
         if new_count == 0 and resolved_count == 0:
             text = f"{target}  no change"
-            color = "#3d5a7a"
+            color = TXT3
         else:
             text = f"{target}  +{new_count} new  −{resolved_count} resolved"
-            color = "#ffb300" if new_count > 0 else "#00ff88"
+            color = MEDIUM if new_count > 0 else SUCCESS
 
         chip = QLabel(text)
         chip.setStyleSheet(
-            f"color: {color}; background: #0a1628; padding: 2px 8px; "
-            f"border-radius: 3px; font-size: 10px;"
+            f"color: {color}; background: {CARD}; padding: 2px 8px; "
+            f"border-radius: 3px; font-size: 10px; border: 1px solid {color};"
         )
 
         self._row.insertWidget(0, chip)

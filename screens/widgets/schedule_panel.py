@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem, QHeaderView,
 )
 from db import DB
+from screens.widgets.theme import ACCENT
 
 
 def _next_due(last_run: str | None, interval_h: int) -> str:
@@ -31,7 +32,7 @@ class SchedulePanel(QWidget):
         layout.setSpacing(6)
 
         hdr = QLabel("Scheduled Scans")
-        hdr.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 12px;")
+        hdr.setStyleSheet(f"color: {ACCENT}; font-weight: bold; font-size: 12px;")
         layout.addWidget(hdr)
 
         self._table = QTableWidget(0, 3)

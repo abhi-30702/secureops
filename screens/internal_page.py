@@ -187,7 +187,7 @@ class InternalPage(QWidget):
         subnets = [s for s, _ in self._chips]
         if not subnets:
             self._status_label.setText("Add at least one subnet range first.")
-            self._status_label.setStyleSheet("color: #C94A62; font-size: 11px;")
+            self._status_label.setStyleSheet(f"color: {CRITICAL}; font-size: 11px;")
             return
 
         scan = Scan(

@@ -83,7 +83,7 @@ class BreachTimeline(QWidget):
         row_layout.addWidget(ts_label)
 
         et = event.get("event_type", "anomaly")
-        color = _EVENT_COLORS.get(et, "#5A7A9B")
+        color = _EVENT_COLORS.get(et, TXT2)
         badge = QLabel(et.upper())
         badge.setStyleSheet(
             f"background: {color}; color: {BG}; border-radius: 3px;"

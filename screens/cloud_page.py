@@ -76,7 +76,7 @@ QGroupBox::title {{
 }}
 QPlainTextEdit {{
     background: #1A1030;
-    color: #C8B8E8;
+    color: {BORDER};
     border: 1px solid {BORDER};
     border-radius: 4px;
 }}

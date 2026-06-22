@@ -3,15 +3,16 @@ import numpy as np
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 import pyqtgraph as pg
+from screens.widgets.theme import BG, TXT, ACCENT, ACCENT_H, MEDIUM, CRITICAL, TXT2
 
 _NODE_COLORS = {
-    "subnet":      "#5F4A8B",
-    "router":      "#B38B00",
+    "subnet":      ACCENT,
+    "router":      MEDIUM,
     "server":      "#00A85A",
-    "workstation": "#8B75C2",
-    "printer":     "#7a9bc4",
-    "iot":         "#C94A62",
-    "unknown":     "#5A7A9B",
+    "workstation": ACCENT_H,
+    "printer":     TXT2,
+    "iot":         CRITICAL,
+    "unknown":     TXT2,
 }
 
 _NODE_SIZES = {
@@ -50,8 +51,8 @@ class TopologyGraph(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         global _PG_TOPO_CONFIGURED
         if not _PG_TOPO_CONFIGURED:
-            pg.setConfigOption("background", "#FEFACD")
-            pg.setConfigOption("foreground", "#2A1F45")
+            pg.setConfigOption("background", BG)
+            pg.setConfigOption("foreground", TXT)
             _PG_TOPO_CONFIGURED = True
         self._view = pg.GraphicsLayoutWidget()
         self._plot = self._view.addPlot()
@@ -138,9 +139,9 @@ class TopologyGraph(QWidget):
             self._graph_item.setData(
                 pos=np.zeros((1, 2), dtype=float),
                 adj=np.zeros((0, 2), dtype=int),
-                symbolBrush=[pg.mkBrush("#FEFACD")],
+                symbolBrush=[pg.mkBrush(BG)],
                 size=[0],
-                pen=pg.mkPen("#8B75C2", width=1),
+                pen=pg.mkPen(ACCENT_H, width=1),
                 symbol="o",
                 pxMode=True,
             )
@@ -149,7 +150,7 @@ class TopologyGraph(QWidget):
         positions = self._compute_positions()
         pos = np.array(positions, dtype=float)
         adj = np.array(self._edges, dtype=int) if self._edges else np.zeros((0, 2), dtype=int)
-        brushes = [pg.mkBrush(_NODE_COLORS.get(t, "#5A7A9B")) for _, t, _ in self._nodes]
+        brushes = [pg.mkBrush(_NODE_COLORS.get(t, TXT2)) for _, t, _ in self._nodes]
         sizes = [_NODE_SIZES.get(t, 8) for _, t, _ in self._nodes]
 
         self._graph_item.setData(
@@ -157,7 +158,7 @@ class TopologyGraph(QWidget):
             adj=adj,
             symbolBrush=brushes,
             size=sizes,
-            pen=pg.mkPen("#8B75C2", width=1),
+            pen=pg.mkPen(ACCENT_H, width=1),
             symbol="o",
             pxMode=True,
         )

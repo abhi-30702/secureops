@@ -12,23 +12,17 @@ from db import DB
 from models import Scan
 from workers.osint_worker import OsintWorker
 from screens.widgets.company_selector import CompanySelector
-
-# ---------------------------------------------------------------------------
-# Colour palette
-# ---------------------------------------------------------------------------
-BG      = "#FEFACD"
-ACCENT  = "#5F4A8B"
-TEXT    = "#2A1F45"
-HOVER   = "#8B75C2"
-SURFACE = "#FFFEF2"
-BORDER  = "#C8B8E8"
+from screens.widgets.theme import (
+    BG, ACCENT, TXT as TEXT, ACCENT_H as HOVER, CARD as SURFACE, BORDER,
+    CRITICAL, SUCCESS, TXT2, MEDIUM,
+)
 
 TYPE_COLORS = {
-    "email":     "#5F4A8B",
-    "subdomain": "#5A7A9B",
-    "ip":        "#B38B00",
-    "url":       "#C94A62",
-    "name":      "#00805A",
+    "email":     ACCENT,
+    "subdomain": TXT2,
+    "ip":        MEDIUM,
+    "url":       CRITICAL,
+    "name":      SUCCESS,
 }
 
 _DEFAULT_SOURCES = (
@@ -68,8 +62,8 @@ QPushButton#start_btn:hover {{
     background: {HOVER};
 }}
 QPushButton#start_btn:disabled {{
-    background: #9B8FC2;
-    color: #FFFEF2;
+    background: {HOVER};
+    color: {SURFACE};
 }}
 QTableWidget {{
     background: {SURFACE};
@@ -221,7 +215,7 @@ class OsintPage(QWidget):
         if not domain:
             self._status_label.setText("Error: domain is required")
             self._status_label.setStyleSheet(
-                "color: #C94A62; font-size: 11px;"
+                f"color: {CRITICAL}; font-size: 11px;"
             )
             return
 
@@ -292,12 +286,12 @@ class OsintPage(QWidget):
     def _on_complete(self, _: int, count: int):
         self._status_label.setText(f"Complete — {count} items found")
         self._status_label.setStyleSheet(
-            "color: #00805A; font-size: 11px;"
+            f"color: {SUCCESS}; font-size: 11px;"
         )
 
     def _on_failed(self, msg: str):
         self._status_label.setText(f"Error: {msg}")
         self._status_label.setStyleSheet(
-            "color: #C94A62; font-size: 11px;"
+            f"color: {CRITICAL}; font-size: 11px;"
         )
         self._scan_id = None

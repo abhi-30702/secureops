@@ -2,13 +2,14 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QFrame, QScrollArea,
 )
+from screens.widgets.theme import BG, ACCENT, TXT as TEXT, CARD as SURFACE, ACCENT_H, CRITICAL, MEDIUM, TXT2
 
 _EVENT_COLORS = {
-    "entry":       "#C94A62",
-    "lateral":     "#B38B00",
-    "persistence": "#5F4A8B",
-    "exfil":       "#C94A62",
-    "anomaly":     "#5A7A9B",
+    "entry":       CRITICAL,
+    "lateral":     MEDIUM,
+    "persistence": ACCENT,
+    "exfil":       CRITICAL,
+    "anomaly":     TXT2,
 }
 
 
@@ -24,16 +25,16 @@ class BreachTimeline(QWidget):
 
         header = QLabel("BREACH TIMELINE")
         header.setStyleSheet(
-            "color: #5F4A8B; font-size: 10px; letter-spacing: 1px; padding: 4px 8px;"
+            f"color: {ACCENT}; font-size: 10px; letter-spacing: 1px; padding: 4px 8px;"
         )
         outer.addWidget(header)
 
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
-        self._scroll.setStyleSheet("QScrollArea { border: none; background: #FEFACD; }")
+        self._scroll.setStyleSheet(f"QScrollArea {{ border: none; background: {BG}; }}")
 
         self._container = QWidget()
-        self._container.setStyleSheet("background: #FEFACD;")
+        self._container.setStyleSheet(f"background: {BG};")
         self._layout = QVBoxLayout(self._container)
         self._layout.setContentsMargins(8, 4, 8, 4)
         self._layout.setSpacing(4)
@@ -68,7 +69,7 @@ class BreachTimeline(QWidget):
     def _make_row(self, event: dict) -> QFrame:
         frame = QFrame()
         frame.setStyleSheet(
-            "QFrame { background: #FFFEF2; border: 1px solid #8B75C2;"
+            f"QFrame {{ background: {SURFACE}; border: 1px solid {ACCENT_H};"
             " border-radius: 4px; }"
         )
         row_layout = QHBoxLayout(frame)
@@ -77,7 +78,7 @@ class BreachTimeline(QWidget):
 
         ts = event.get("timestamp", "")[:19].replace("T", " ")
         ts_label = QLabel(ts)
-        ts_label.setStyleSheet("color: #5A7A9B; font-family: monospace; font-size: 10px;")
+        ts_label.setStyleSheet(f"color: {TXT2}; font-family: monospace; font-size: 10px;")
         ts_label.setFixedWidth(130)
         row_layout.addWidget(ts_label)
 
@@ -85,7 +86,7 @@ class BreachTimeline(QWidget):
         color = _EVENT_COLORS.get(et, "#5A7A9B")
         badge = QLabel(et.upper())
         badge.setStyleSheet(
-            f"background: {color}; color: #FEFACD; border-radius: 3px;"
+            f"background: {color}; color: {BG}; border-radius: 3px;"
             " padding: 1px 6px; font-size: 9px; font-weight: bold;"
         )
         badge.setFixedWidth(80)
@@ -96,13 +97,13 @@ class BreachTimeline(QWidget):
         route = f"{src} → {dst}" if dst else src
         if route:
             route_label = QLabel(route)
-            route_label.setStyleSheet("color: #2A1F45; font-size: 10px;")
+            route_label.setStyleSheet(f"color: {TEXT}; font-size: 10px;")
             route_label.setFixedWidth(160)
             row_layout.addWidget(route_label)
 
         desc = event.get("description", "")
         desc_label = QLabel(desc)
-        desc_label.setStyleSheet("color: #2A1F45; font-size: 10px;")
+        desc_label.setStyleSheet(f"color: {TEXT}; font-size: 10px;")
         desc_label.setWordWrap(True)
         row_layout.addWidget(desc_label, stretch=1)
 

@@ -14,6 +14,7 @@ from screens.widgets.severity_rings import SeverityRings
 from screens.widgets.finding_cards import FindingCards
 from screens.widgets.company_selector import CompanySelector
 from workers.internal_worker import InternalWorker
+from screens.widgets.theme import BG, ACCENT, TXT as TEXT, CARD as SURFACE, ACCENT_H as HOVER, CRITICAL, SUCCESS
 
 
 class InternalPage(QWidget):
@@ -81,7 +82,7 @@ class InternalPage(QWidget):
 
         # --- status label ---
         self._status_label = QLabel("Idle — add subnet ranges and click Start Sweep")
-        self._status_label.setStyleSheet("color: #2A1F45; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {TEXT}; font-size: 11px;")
         layout.addWidget(self._status_label)
 
         # --- main body ---
@@ -92,7 +93,7 @@ class InternalPage(QWidget):
         self._terminal.setReadOnly(True)
         self._terminal.setObjectName("panel")
         self._terminal.setStyleSheet(
-            "font-family: monospace; font-size: 11px; color: #2A1F45; background-color: #FEFACD;"
+            f"font-family: monospace; font-size: 11px; color: {TEXT}; background-color: {BG};"
         )
 
         right_panel = QWidget()
@@ -145,21 +146,21 @@ class InternalPage(QWidget):
             ipaddress.ip_network(text, strict=False)
         except ValueError:
             self._status_label.setText(f"Invalid subnet: {text}")
-            self._status_label.setStyleSheet("color: #C94A62; font-size: 11px;")
+            self._status_label.setStyleSheet(f"color: {CRITICAL}; font-size: 11px;")
             return
         existing = {s for s, _ in self._chips}
         if text not in existing:
             self._add_chip(text)
         self._subnet_input.clear()
         self._status_label.setText("Idle — click Start Sweep when ready")
-        self._status_label.setStyleSheet("color: #2A1F45; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {TEXT}; font-size: 11px;")
 
     def _add_chip(self, subnet: str):
         btn = QPushButton(f"{subnet}  ×")
         btn.setStyleSheet(
-            "QPushButton { background: #FFFEF2; color: #5F4A8B; border: 1px solid #5F4A8B;"
+            f"QPushButton {{ background: {SURFACE}; color: {ACCENT}; border: 1px solid {ACCENT};"
             " border-radius: 10px; padding: 2px 8px; font-size: 11px; }"
-            "QPushButton:hover { background: #8B75C2; color: #FEFACD; }"
+            f"QPushButton:hover {{ background: {HOVER}; color: {BG}; }}"
         )
         btn.clicked.connect(lambda: self._remove_chip(subnet))
         self._chips_row.insertWidget(self._chips_row.count() - 1, btn)
@@ -213,7 +214,7 @@ class InternalPage(QWidget):
 
         self._start_btn.setText("■  Stop Sweep")
         self._status_label.setText("Sweeping…")
-        self._status_label.setStyleSheet("color: #5F4A8B; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {ACCENT}; font-size: 11px;")
 
     def _on_finding(self, finding):
         ports = []
@@ -235,7 +236,7 @@ class InternalPage(QWidget):
         self._start_btn.setText("▶  Start Sweep")
         self._start_btn.setEnabled(True)
         self._status_label.setText(f"Done — {hosts} hosts, {findings} findings")
-        self._status_label.setStyleSheet("color: #00A85A; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {SUCCESS}; font-size: 11px;")
         self._finding_cards.on_scan_complete(hosts, findings)
         if self._scan_id is not None:
             self.scan_ready.emit(self._scan_id)
@@ -244,7 +245,7 @@ class InternalPage(QWidget):
         self._start_btn.setText("▶  Start Sweep")
         self._start_btn.setEnabled(True)
         self._status_label.setText(f"Error: {msg}")
-        self._status_label.setStyleSheet("color: #C94A62; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {CRITICAL}; font-size: 11px;")
 
     def _on_worker_finished(self):
         if not self._start_btn.isEnabled():

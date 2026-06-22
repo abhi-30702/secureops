@@ -14,16 +14,7 @@ from models import Scan
 from workers.cloud_worker import CloudWorker
 from screens.widgets.finding_cards import FindingCards
 from screens.widgets.company_selector import CompanySelector
-
-# ---------------------------------------------------------------------------
-# Colour palette
-# ---------------------------------------------------------------------------
-BG      = "#FEFACD"
-ACCENT  = "#5F4A8B"
-TEXT    = "#2A1F45"
-SURFACE = "#FFFEF2"
-BORDER  = "#C8B8E8"
-HOVER   = "#8B75C2"
+from screens.widgets.theme import BG, ACCENT, TXT as TEXT, CARD as SURFACE, BORDER, ACCENT_H as HOVER, CRITICAL, SUCCESS
 
 _QSS = f"""
 QWidget {{
@@ -58,8 +49,8 @@ QPushButton#start_btn:hover {{
     background: {HOVER};
 }}
 QPushButton#start_btn:disabled {{
-    background: #9B8FC2;
-    color: #FFFEF2;
+    background: {HOVER};
+    color: {SURFACE};
 }}
 QPushButton#browse_btn {{
     background: {SURFACE};
@@ -239,7 +230,7 @@ class CloudPage(QWidget):
                 "Error: configure at least one provider"
             )
             self._status_label.setStyleSheet(
-                "color: #C94A62; font-size: 11px;"
+                f"color: {CRITICAL}; font-size: 11px;"
             )
             return
 
@@ -318,7 +309,7 @@ class CloudPage(QWidget):
         count = summary.get("total", 0)
         self._status_label.setText(f"Complete — {count} findings")
         self._status_label.setStyleSheet(
-            "color: #00805A; font-size: 11px;"
+            f"color: {SUCCESS}; font-size: 11px;"
         )
 
     def _on_error(self, tool: str, msg: str):

@@ -12,6 +12,7 @@ from screens.widgets.breach_timeline import BreachTimeline
 from screens.widgets.severity_rings import SeverityRings
 from screens.widgets.finding_cards import FindingCards
 from workers.incident_worker import IncidentWorker
+from screens.widgets.theme import BG, ACCENT, TXT as TEXT, CARD as SURFACE, ACCENT_H as HOVER, CRITICAL, SUCCESS, TXT2
 
 
 class IncidentPage(QWidget):
@@ -59,9 +60,9 @@ class IncidentPage(QWidget):
         self._start_btn.setEnabled(self._db is not None)
         self._start_btn.clicked.connect(self._on_start_stop)
         self._start_btn.setStyleSheet(
-            "QPushButton { background: #5F4A8B; color: #FEFACD; border-radius: 4px; padding: 4px 12px; }"
-            "QPushButton:hover { background: #8B75C2; }"
-            "QPushButton:disabled { background: #5A7A9B; color: #FFFEF2; }"
+            f"QPushButton {{ background: {ACCENT}; color: {BG}; border-radius: 4px; padding: 4px 12px; }}"
+            f"QPushButton:hover {{ background: {HOVER}; }}"
+            f"QPushButton:disabled {{ background: {TXT2}; color: {SURFACE}; }}"
         )
 
         top_bar.addWidget(self._log_input, stretch=1)
@@ -75,7 +76,7 @@ class IncidentPage(QWidget):
 
         # --- status label ---
         self._status_label = QLabel("Idle — select a log file and click Start Scan")
-        self._status_label.setStyleSheet("color: #2A1F45; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {TEXT}; font-size: 11px;")
         layout.addWidget(self._status_label)
 
         # --- body ---
@@ -85,7 +86,7 @@ class IncidentPage(QWidget):
         self._terminal = QPlainTextEdit()
         self._terminal.setReadOnly(True)
         self._terminal.setStyleSheet(
-            "font-family: monospace; font-size: 11px; color: #2A1F45; background: #FEFACD;"
+            f"font-family: monospace; font-size: 11px; color: {TEXT}; background: {BG};"
         )
 
         right_panel = QWidget()
@@ -127,7 +128,7 @@ class IncidentPage(QWidget):
         log_path = self._log_input.text().strip()
         if not log_path:
             self._status_label.setText("Please select a log file first.")
-            self._status_label.setStyleSheet("color: #C94A62; font-size: 11px;")
+            self._status_label.setStyleSheet(f"color: {CRITICAL}; font-size: 11px;")
             return
 
         scan = Scan(
@@ -159,7 +160,7 @@ class IncidentPage(QWidget):
 
         self._start_btn.setText("■  Stop Scan")
         self._status_label.setText("Scanning…")
-        self._status_label.setStyleSheet("color: #5F4A8B; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {ACCENT}; font-size: 11px;")
 
     def _on_finding(self, finding):
         self._severity_rings.add_finding(finding)
@@ -172,7 +173,7 @@ class IncidentPage(QWidget):
             self._worker.deleteLater()
             self._worker = None
         self._status_label.setText(f"Done — {findings} findings")
-        self._status_label.setStyleSheet("color: #00A85A; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {SUCCESS}; font-size: 11px;")
         self._finding_cards.on_scan_complete(0, findings)
         self._severity_rings.on_scan_complete(0, findings)
         if self._scan_id is not None:
@@ -188,7 +189,7 @@ class IncidentPage(QWidget):
             self._worker = None
         self._scan_id = None
         self._status_label.setText(f"Error: {msg}")
-        self._status_label.setStyleSheet("color: #C94A62; font-size: 11px;")
+        self._status_label.setStyleSheet(f"color: {CRITICAL}; font-size: 11px;")
 
     def _on_worker_finished(self):
         if not self._start_btn.isEnabled():

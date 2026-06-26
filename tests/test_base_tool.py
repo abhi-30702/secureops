@@ -138,3 +138,32 @@ def test_run_falls_back_to_original_name_when_tool_path_returns_none(monkeypatch
         list(runner.run(['subfinder', '-d', 'example.com']))
 
     assert captured['cmd'][0] == 'subfinder'
+
+
+# --- Reliability: streaming run() must enforce timeout, drain stderr, surface it ---
+
+def test_run_kills_and_raises_on_timeout(monkeypatch):
+    """A tool that hangs with no output must be killed and reported, not block forever."""
+    import pytest
+    monkeypatch.setattr('workers.base_tool._tool_path', lambda name: None, raising=False)
+    runner = _make_runner()
+    with pytest.raises(ToolError, match="timed out"):
+        list(runner.run(["sleep", "10"], timeout=1))
+
+
+def test_run_surfaces_stderr_in_error_message(monkeypatch):
+    """On non-zero exit, the error should include the tool's stderr, not just the code."""
+    import pytest
+    monkeypatch.setattr('workers.base_tool._tool_path', lambda name: None, raising=False)
+    runner = _make_runner()
+    with pytest.raises(ToolError, match="distinctive-failure-reason"):
+        list(runner.run(["sh", "-c", "echo distinctive-failure-reason >&2; exit 3"]))
+
+
+def test_run_does_not_deadlock_on_large_stderr(monkeypatch):
+    """Heavy stderr output must not block stdout streaming (pipe-buffer deadlock)."""
+    monkeypatch.setattr('workers.base_tool._tool_path', lambda name: None, raising=False)
+    runner = _make_runner()
+    script = "for i in $(seq 1 20000); do echo noise >&2; done; echo finished"
+    lines = list(runner.run(["sh", "-c", script], timeout=30))
+    assert "finished" in lines

@@ -46,15 +46,22 @@ class OsintWorker(QThread):
             self._db.update_scan_status(self._scan_id, "failed")
             return
 
-        # 4. Write each item to DB, then emit
+        # 4. Write each item to DB, then emit. Isolate each item: a single
+        #    malformed item must never crash the worker thread and leave the
+        #    scan stuck 'running' with no terminal signal. Skip the bad one,
+        #    surface it, and keep going.
         count = 0
         for item in items:
-            item["scan_id"] = self._scan_id
-            item["domain"] = self._domain
-            item["created_at"] = datetime.now(timezone.utc).isoformat()
-            self._db.insert_osint_item(item)
-            self.item_found.emit(item)
-            count += 1
+            try:
+                item["scan_id"] = self._scan_id
+                item["domain"] = self._domain
+                item["created_at"] = datetime.now(timezone.utc).isoformat()
+                self._db.insert_osint_item(item)
+                self.item_found.emit(item)
+                count += 1
+            except Exception as exc:
+                self.error_occurred.emit("theharvester", str(exc))
+                self.log_line.emit(f"[osint] skipped bad item: {exc}")
 
         # 5. Mark complete
         self._db.update_scan_status(self._scan_id, "complete")

@@ -119,3 +119,40 @@ def test_scan_complete_fires_with_count(qtbot):
 
     assert len(complete_args) == 1
     assert complete_args[0] == (0, 3)
+
+
+# ── Test 6 ────────────────────────────────────────────────────────────────────
+
+def test_one_bad_item_does_not_crash_worker(qtbot):
+    """A single item that fails to persist must not abort the whole run.
+    The worker must still skip it, persist the good items, and reach a
+    terminal scan_complete signal — never leave the scan stuck 'running'."""
+    db, scan_id = _make_db_with_scan()
+    worker = OsintWorker(domain="example.com", scan_id=scan_id, db=db)
+
+    completed = []
+    emitted = []
+    worker.scan_complete.connect(lambda code, count: completed.append((code, count)))
+    worker.item_found.connect(emitted.append)
+
+    real_insert = db.insert_osint_item
+
+    def flaky_insert(item):
+        if item.get("value") == "mail.example.com":
+            raise RuntimeError("malformed item")
+        return real_insert(item)
+
+    with patch("workers.osint_worker.theharvester.run", return_value=FAKE_ITEMS), \
+         patch.object(db, "insert_osint_item", side_effect=flaky_insert):
+        worker.run()
+
+    # Reached a terminal signal (not stuck running) and counted only good items
+    assert len(completed) == 1
+    assert completed[0] == (0, 2)
+    assert len(emitted) == 2
+
+    # Scan marked complete, never left hanging in 'running'
+    row = db._conn.execute(
+        "SELECT status FROM scans WHERE id=?", (scan_id,)
+    ).fetchone()
+    assert row["status"] == "complete"

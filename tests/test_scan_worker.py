@@ -51,6 +51,28 @@ def test_scan_worker_emits_tool_failed_on_tool_error(qtbot, db):
     assert "subfinder" in failed_tools
 
 
+def test_scan_worker_isolates_unexpected_tool_exception(qtbot, db):
+    """Rule #2: ANY tool failure — not just ToolError — must be isolated.
+    An unexpected exception in one tool must not abort the whole scan."""
+    worker, _ = _make_worker(db)
+    failed_tools = []
+    worker.tool_failed.connect(lambda name, _msg: failed_tools.append(name))
+
+    with patch("workers.scan_worker.subfinder.run", return_value=[]):
+        with patch("workers.scan_worker.dnsx.run", return_value=[]):
+            with patch("workers.scan_worker.naabu.run", side_effect=RuntimeError("unexpected boom")):
+                with patch("workers.scan_worker.httpx.run", return_value=[]):
+                    with patch("workers.scan_worker.katana.run", return_value=[]):
+                        with patch("workers.scan_worker.nuclei.run", return_value=[]):
+                            with patch("workers.scan_worker.nmap.run", return_value=[]):
+                                with patch("workers.scan_worker.nikto.run", return_value=[]):
+                                    with patch("workers.scan_worker.testssl.run", return_value=[]):
+                                        with qtbot.waitSignal(worker.scan_complete, timeout=5000):
+                                            worker.start()
+
+    assert "naabu" in failed_tools
+
+
 def test_scan_worker_sets_status_complete_in_db(qtbot, db):
     worker, scan_id = _make_worker(db)
 

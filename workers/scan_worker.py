@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from db import DB
-from workers.base_tool import ToolRunner, ToolError, CancelledError
+from workers.base_tool import ToolRunner, CancelledError
 from workers.tools import subfinder, dnsx, naabu, httpx, katana, nuclei, nmap, nikto, testssl
 
 
@@ -65,7 +65,10 @@ class ScanWorker(QThread):
             return results
         except CancelledError:
             raise
-        except ToolError as exc:
+        except Exception as exc:
+            # Rule #2: any tool failure is isolated, never fatal to the pipeline.
+            # ToolError is the expected case; catching Exception also contains
+            # unexpected wrapper bugs (DB errors, parse errors, OS errors).
             self.tool_failed.emit(name, str(exc))
             self.log_line.emit(f"[{name}] failed: {exc}")
             return []
@@ -121,7 +124,10 @@ class ScanWorker(QThread):
             return results
         except CancelledError:
             raise
-        except ToolError as exc:
+        except Exception as exc:
+            # Rule #2: isolate any failure in a parallel tool. This runs inside a
+            # ThreadPool future; an uncaught exception here would re-raise at
+            # future.result() and abort the whole scan.
             self.tool_failed.emit(name, str(exc))
             self.log_line.emit(f"[{name}] failed: {exc}")
             return []

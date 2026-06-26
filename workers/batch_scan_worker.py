@@ -46,21 +46,29 @@ class BatchScanWorker(QThread):
             self.company_started.emit(company["name"], i)
             self.tool_log.emit(f"[batch] scanning {company['name']} ({domain})")
 
-            scan = Scan(
-                id=None,
-                client_id=company.get("id"),
-                target=domain,
-                status="running",
-                started_at=datetime.now(timezone.utc).isoformat(),
-                finished_at=None,
-            )
-            scan_id = self._db.insert_scan(scan)
+            # Isolate each company: a failure scanning one (DB error, unexpected
+            # bug) must never abort the rest of the batch. 9-company scope means
+            # one bad company can't take down the whole run.
+            try:
+                scan = Scan(
+                    id=None,
+                    client_id=company.get("id"),
+                    target=domain,
+                    status="running",
+                    started_at=datetime.now(timezone.utc).isoformat(),
+                    finished_at=None,
+                )
+                scan_id = self._db.insert_scan(scan)
 
-            count = self._run_company(domain, scan_id)
-            self._db.update_scan_status(scan_id, "complete", datetime.now(timezone.utc).isoformat())
-            self.company_complete.emit(company["name"], count)
-            total_findings += count
-            scanned += 1
+                count = self._run_company(domain, scan_id)
+                self._db.update_scan_status(scan_id, "complete", datetime.now(timezone.utc).isoformat())
+                self.company_complete.emit(company["name"], count)
+                total_findings += count
+                scanned += 1
+            except CancelledError:
+                break
+            except Exception as exc:
+                self.error_occurred.emit(company["name"], str(exc))
 
         self.batch_complete.emit(scanned, total_findings)
 

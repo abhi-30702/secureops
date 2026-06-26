@@ -96,3 +96,28 @@ def test_batch_complete_fires():
 
     assert len(completed) == 1
     assert completed[0][0] == 2
+
+
+def test_one_company_failure_does_not_abort_batch():
+    """A failure scanning one company must not stop the rest of the batch."""
+    db = _make_db()
+    completed = []
+    errors = []
+    scanned_companies = []
+
+    def flaky_run_company(self, domain, scan_id):
+        if domain == "a.com":
+            raise RuntimeError("db locked")
+        return 0
+
+    with patch.object(BatchScanWorker, "_run_company", flaky_run_company):
+        worker = BatchScanWorker(companies=COMPANIES, db=db)
+        worker.batch_complete.connect(lambda scanned, total: completed.append((scanned, total)))
+        worker.error_occurred.connect(lambda name, msg: errors.append(name))
+        worker.company_complete.connect(lambda name, count: scanned_companies.append(name))
+        worker.run()
+
+    # Batch still finished, second company still scanned, first reported as error
+    assert len(completed) == 1
+    assert "Co B" in scanned_companies
+    assert errors  # the failing company surfaced an error

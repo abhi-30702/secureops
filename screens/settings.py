@@ -26,6 +26,7 @@ class SettingsScreen(QWidget):
         self._advisor_backend_combo: QComboBox | None = None
         self._api_key_input: QLineEdit | None = None
         self._ollama_model_input: QLineEdit | None = None
+        self._advisor_redact_cb: QCheckBox | None = None
         self._advisor_save_btn: QPushButton | None = None
         self._setup_ui()
 
@@ -124,13 +125,35 @@ class SettingsScreen(QWidget):
                 item.widget().deleteLater()
         if not self._db:
             return
-        for sched in self._db.query_schedules():
-            row = QLabel(
+        schedules = self._db.query_schedules()
+        if not schedules:
+            empty = QLabel("No scheduled scans.")
+            empty.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
+            self._schedules_layout.addWidget(empty)
+            return
+        for sched in schedules:
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+            label = QLabel(
                 f"{sched.target}  ·  Every {sched.interval_h}h  ·  "
                 f"{'Enabled' if sched.enabled else 'Disabled'}"
             )
-            row.setStyleSheet(f"color: {TXT2}; font-size: 11px;")
+            label.setStyleSheet(f"color: {TXT2}; font-size: 11px;")
+            row_layout.addWidget(label, stretch=1)
+            del_btn = QPushButton("✕")
+            del_btn.setFixedWidth(24)
+            del_btn.setToolTip("Remove this schedule")
+            del_btn.clicked.connect(lambda _=False, sid=sched.id: self._on_delete_schedule(sid))
+            row_layout.addWidget(del_btn)
             self._schedules_layout.addWidget(row)
+
+    def _on_delete_schedule(self, schedule_id: int):
+        if not self._db:
+            return
+        self._db.delete_schedule(schedule_id)
+        self._refresh_schedules()
 
     def _build_advisor_section(self, layout: QVBoxLayout) -> None:
         advisor_label = QLabel("AI ADVISOR")
@@ -174,6 +197,16 @@ class SettingsScreen(QWidget):
             self._ollama_model_input.setText(saved_model or "llama3")
         layout.addWidget(self._ollama_model_input)
 
+        self._advisor_redact_cb = QCheckBox(
+            "Redact company name, hostnames and IPs before sending"
+        )
+        self._advisor_redact_cb.setStyleSheet(f"color: {TXT};")
+        self._advisor_redact_cb.setChecked(
+            self._db is not None and self._db.get_setting("advisor_redact") == "1"
+        )
+        self._advisor_redact_cb.setEnabled(enabled)
+        layout.addWidget(self._advisor_redact_cb)
+
         self._sync_backend_inputs(enabled)
 
         save_row = QHBoxLayout()
@@ -203,6 +236,8 @@ class SettingsScreen(QWidget):
     def _on_advisor_toggled(self, checked: bool) -> None:
         if self._advisor_backend_combo:
             self._advisor_backend_combo.setEnabled(checked)
+        if self._advisor_redact_cb:
+            self._advisor_redact_cb.setEnabled(checked)
         self._sync_backend_inputs(checked)
 
     def _on_backend_changed(self, _index: int) -> None:
@@ -226,6 +261,10 @@ class SettingsScreen(QWidget):
             self._db.set_setting("gemini_api_key", self._api_key_input.text().strip())
         if self._ollama_model_input:
             self._db.set_setting("ollama_model", self._ollama_model_input.text().strip() or "llama3")
+        if self._advisor_redact_cb:
+            self._db.set_setting(
+                "advisor_redact", "1" if self._advisor_redact_cb.isChecked() else "0"
+            )
 
     def _build_subnet_section(self, layout: QVBoxLayout) -> None:
         subnet_label = QLabel("INTERNAL SUBNET RANGES")

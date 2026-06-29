@@ -47,3 +47,29 @@ def test_refresh_updates_severity_strip(qtbot):
     screen.refresh()
     assert screen._severity_strip._counts["critical"] == 1
     assert screen._severity_strip._counts["high"] == 1
+
+
+def test_dashboard_has_incidents_card(qtbot):
+    db = DB(":memory:")
+    screen = DashboardScreen(tool_results={}, db=db)
+    qtbot.addWidget(screen)
+    assert "Incidents" in {c.title for c in screen._metric_cards}
+
+
+def test_refresh_updates_incident_count(qtbot):
+    db = DB(":memory:")
+    screen = DashboardScreen(tool_results={}, db=db)
+    qtbot.addWidget(screen)
+    scan_id = db.insert_scan(Scan(None, None, "t.com", "complete", _now(), _now()))
+    db.insert_incident_event({"scan_id": scan_id, "event_type": "entry",
+                              "description": "breach"})
+    db.insert_incident_event({"scan_id": scan_id, "event_type": "lateral",
+                              "description": "pivot"})
+    screen.refresh()
+    card_map = {c.title: c for c in screen._metric_cards}
+    assert card_map["Incidents"]._value_label.text() == "2"
+
+
+def test_count_incident_events_empty():
+    db = DB(":memory:")
+    assert db.count_incident_events() == 0

@@ -120,16 +120,16 @@ secureops/                         # repo root
 | **1** | main.py entry point, MainWindow, dark QSS theme, sidebar navigation, QStackedWidget page shell, startup tool checker with clear error messages | ✅ Done |
 | **2** | All tool wrappers (workers/tools/*.py), ScanWorker QThread, chained external pipeline (subfinder→dnsx→naabu→httpx→katana→nuclei + nmap/nikto/testssl), SQLite schema + db.py | ✅ Done |
 | **3** | Live visuals: PipelineTracker widget, SeverityRings widget, attack_graph widget, FindingCards widget, ScanView page wiring it all together | ✅ Done |
-| **4** | InternalWorker + nmap for subnet sweep, device fingerprinting, topology map in attack_graph, InternalPage UI | 🔲 **Current** |
-| **5** | IncidentWorker, LogAnalyser (dedicated incident_page.py), YaraScanner, persistence checker, breach timeline | ⚠️ Partial (log_analyzer in scan_view; no incident_page, no YARA, no persistence checker) |
-| **6** | CloudWorker (boto3 AWS + google-cloud GCP), OsintWorker (theHarvester), CloudPage, OsintPage | 🔲 Not started |
-| **7** | Multi-target: 9-company registry in client_onboarding.py, sequential/parallel scan orchestration, per-company + consolidated findings | 🔲 Not started |
+| **4** | InternalWorker + nmap for subnet sweep, device fingerprinting, topology map in attack_graph, InternalPage UI | ✅ Done |
+| **5** | IncidentWorker, LogAnalyser (dedicated incident_page.py), YaraScanner, persistence checker, breach timeline | ✅ Done (incident_page, yara_scanner, persistence_checker, breach_timeline; breach timeline in PDF) |
+| **6** | CloudWorker (boto3 AWS + google-cloud GCP), OsintWorker (theHarvester), CloudPage, OsintPage | ✅ Done (cloud/OSINT pages + workers; OSINT section + cloud ISO mapping in PDF) |
+| **7** | Multi-target: 9-company registry in client_onboarding.py, sequential/parallel scan orchestration, per-company + consolidated findings | ✅ Done (sequential BatchScanWorker, consolidated PDF + cross-company correlation; parallel mode deferred per PRD §12) |
 | **8** | ReportPage settled view, ReportLab PDF export (light corporate theme), per-company sections | ✅ Done |
-| **9** | SOC dashboard: live metrics, scheduling, delta alerts between scans | ⚠️ Partial (dashboard.py shell exists) |
-| **10** | AI Advisor: advisor/worker.py, consent flow UI, Ollama local option, labelled output | ⚠️ Partial (Gemini integration in advisor/) |
+| **9** | SOC dashboard: live metrics, scheduling, delta alerts between scans | ✅ Done (metrics inc. Incidents card, schedule add/delete, DeltaWorker delta alerts) |
+| **10** | AI Advisor: advisor/worker.py, consent flow UI, Ollama local option, labelled output | ✅ Done (Gemini + Ollama, backend-aware consent flow, redaction option) |
 | **11** | PyInstaller spec, .deb + .AppImage build, bundled binaries, THIRD-PARTY-LICENSES | ✅ Done (build.sh, secureops.spec) |
 
-**Current phase: Phase 4 — Internal Network Scanning**
+**Current status: all 11 phases complete.** Test suite: 395 passing.
 Always confirm which phase we are on at the start of each session.
 
 ---

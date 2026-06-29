@@ -105,7 +105,7 @@ class DashboardScreen(QWidget):
         layout.addWidget(self._warning_banner)
 
         cards_row = QHBoxLayout()
-        for title in ("Clients", "Scans", "Findings"):
+        for title in ("Clients", "Scans", "Findings", "Incidents"):
             card = MetricCard(title)
             self._metric_cards.append(card)
             cards_row.addWidget(card)
@@ -163,6 +163,8 @@ class DashboardScreen(QWidget):
             card_map["Scans"].set_value(n_scans)
         if "Findings" in card_map:
             card_map["Findings"].set_value(n_findings)
+        if "Incidents" in card_map:
+            card_map["Incidents"].set_value(self._db.count_incident_events())
 
         self._threat_feed.refresh(self._db)
 

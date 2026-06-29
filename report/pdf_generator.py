@@ -18,6 +18,14 @@ _SEVERITY_COLORS = {
     "info":     colors.HexColor("#64748b"),
 }
 
+_EVENT_COLORS = {
+    "entry":       colors.HexColor("#ff4444"),
+    "lateral":     colors.HexColor("#ff8800"),
+    "persistence": colors.HexColor("#8844cc"),
+    "exfil":       colors.HexColor("#ff4444"),
+    "anomaly":     colors.HexColor("#64748b"),
+}
+
 _RISK_COLORS = {
     "CRITICAL": colors.HexColor("#ff4444"),
     "HIGH":     colors.HexColor("#ff8800"),
@@ -36,6 +44,9 @@ _ISO_MAP = {
     "subfinder": ("A.13.1", "Network security management"),
     "dnsx":      ("A.13.1", "Network security management"),
     "naabu":     ("A.13.1", "Network security management"),
+    "aws_auditor": ("A.9.4", "System and application access control"),
+    "gcp_auditor": ("A.9.4", "System and application access control"),
+    "theharvester": ("A.13.2", "Information transfer"),
 }
 
 _REMEDIATION = {
@@ -52,13 +63,17 @@ _SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
 class PdfGenerator:
     def __init__(self, scan: Scan, hosts: list[Host], findings: list[Finding],
                  client: Client | None = None, output_path: str = "report.pdf",
-                 advisory_items: list | None = None):
+                 advisory_items: list | None = None,
+                 incident_events: list | None = None,
+                 osint_items: list | None = None):
         self._scan = scan
         self._hosts = hosts
         self._findings = findings
         self._client = client
         self._output_path = output_path
         self._advisory_items = advisory_items or []
+        self._incident_events = incident_events or []
+        self._osint_items = osint_items or []
         self._styles = getSampleStyleSheet()
         self._setup_styles()
 
@@ -115,6 +130,10 @@ class PdfGenerator:
         story += self._findings_section(net_findings)
         if log_findings:
             story += self._log_section(log_findings)
+        if self._incident_events:
+            story += self._breach_timeline_section()
+        if self._osint_items:
+            story += self._osint_section()
         story.append(PageBreak())
         story += self._iso_section(net_findings)
         if self._advisory_items:
@@ -294,6 +313,125 @@ class PdfGenerator:
 
         if not findings:
             story.append(Paragraph("No log anomalies recorded.", self._body))
+        return story
+
+    def _breach_timeline_section(self) -> list:
+        story = [
+            PageBreak(),
+            Paragraph("Breach Timeline", self._h1),
+            HRFlowable(width="100%", thickness=1, color=colors.HexColor("#e2e8f0")),
+            Paragraph(
+                "Reconstructed attacker activity in chronological order, derived from "
+                "log analysis, IOC matches, and persistence checks.",
+                self._body,
+            ),
+            Spacer(1, 0.3 * cm),
+        ]
+        events = sorted(
+            self._incident_events,
+            key=lambda e: e.get("timestamp", "") or "",
+        )
+        rows = [["Time", "Stage", "Host", "Description"]]
+        for e in events:
+            ts = (e.get("timestamp", "") or "")[:19].replace("T", " ")
+            stage = (e.get("event_type", "") or "").upper()
+            src = e.get("source_host", "") or ""
+            dst = e.get("dest_host", "") or ""
+            host = f"{src} → {dst}" if dst else src
+            desc = e.get("description", "") or ""
+            rows.append([
+                Paragraph(ts, self._muted),
+                Paragraph(stage, self._muted),
+                Paragraph(host or "—", self._muted),
+                Paragraph(desc, self._body),
+            ])
+        t = Table(rows, colWidths=[3*cm, 2.2*cm, 3.8*cm, 7*cm])
+        style = [
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e293b")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, 0), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#f8fafc"), colors.white]),
+        ]
+        for i, e in enumerate(events, start=1):
+            stage_color = _EVENT_COLORS.get(e.get("event_type", ""), colors.grey)
+            style.append(("TEXTCOLOR", (1, i), (1, i), stage_color))
+            style.append(("FONTNAME", (1, i), (1, i), "Helvetica-Bold"))
+        t.setStyle(TableStyle(style))
+        story.append(t)
+        story.append(Spacer(1, 0.5 * cm))
+        return story
+
+    def _osint_section(self) -> list:
+        story = [
+            PageBreak(),
+            Paragraph("OSINT — Public Footprint", self._h1),
+            HRFlowable(width="100%", thickness=1, color=colors.HexColor("#e2e8f0")),
+            Paragraph(
+                "Information about the target gathered from public sources. Exposure "
+                "of these items expands the external attack surface.",
+                self._body,
+            ),
+            Spacer(1, 0.3 * cm),
+        ]
+        # Group by item type, preserving a stable, readable order.
+        order = ["email", "subdomain", "ip", "url", "name"]
+        grouped: dict[str, list] = {}
+        for item in self._osint_items:
+            grouped.setdefault(item.get("item_type", "other"), []).append(item)
+
+        # Summary counts table.
+        summary_rows = [["Type", "Count"]]
+        for t in order + [t for t in grouped if t not in order]:
+            if t in grouped:
+                summary_rows.append([t, str(len(grouped[t]))])
+        st = Table(summary_rows, colWidths=[6*cm, 3*cm])
+        st.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e293b")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#f8fafc"), colors.white]),
+        ]))
+        story.append(st)
+        story.append(Spacer(1, 0.4 * cm))
+
+        # Detail tables per type.
+        for t in order + [t for t in grouped if t not in order]:
+            items = grouped.get(t)
+            if not items:
+                continue
+            story.append(Paragraph(t.capitalize(), self._h3))
+            rows = [["Value", "Source"]]
+            for item in items:
+                rows.append([
+                    Paragraph(item.get("value", ""), self._muted),
+                    Paragraph(item.get("source", ""), self._muted),
+                ])
+            dt = Table(rows, colWidths=[12*cm, 4*cm])
+            dt.setStyle(TableStyle([
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#334155")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#f8fafc"), colors.white]),
+            ]))
+            story.append(dt)
+            story.append(Spacer(1, 0.3 * cm))
         return story
 
     def _iso_section(self, findings: list | None = None) -> list:

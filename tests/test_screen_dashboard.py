@@ -29,10 +29,10 @@ def _make_db_with_data() -> DB:
     return db
 
 
-def test_dashboard_has_three_metric_cards(qtbot):
+def test_dashboard_has_four_metric_cards(qtbot):
     screen = DashboardScreen(_all_present())
     qtbot.addWidget(screen)
-    assert len(screen._metric_cards) == 3
+    assert len(screen._metric_cards) == 4
 
 
 def test_dashboard_metric_card_labels(qtbot):
@@ -42,6 +42,7 @@ def test_dashboard_metric_card_labels(qtbot):
     assert "Clients" in titles
     assert "Scans" in titles
     assert "Findings" in titles
+    assert "Incidents" in titles
 
 
 def test_dashboard_warning_banner_hidden_when_tools_ok(qtbot):

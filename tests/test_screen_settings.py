@@ -90,6 +90,17 @@ def test_settings_add_schedule_ignores_empty_target(qtbot):
     assert db.query_schedules() == []
 
 
+def test_settings_delete_schedule_removes_from_db(qtbot):
+    db = _make_db()
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    screen._schedule_target.setText("example.com")
+    screen._add_schedule_btn.click()
+    sched_id = db.query_schedules()[0].id
+    screen._on_delete_schedule(sched_id)
+    assert db.query_schedules() == []
+
+
 def test_settings_has_advisor_checkbox(qtbot):
     screen = SettingsScreen(_all_present())
     qtbot.addWidget(screen)
@@ -142,3 +153,29 @@ def test_settings_loads_saved_api_key(qtbot):
     qtbot.addWidget(screen)
     assert screen._advisor_enabled_cb.isChecked()
     assert screen._api_key_input.text() == "existing-key"
+
+
+def test_settings_save_persists_redaction(qtbot):
+    db = _make_db()
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    screen._advisor_enabled_cb.setChecked(True)
+    screen._advisor_redact_cb.setChecked(True)
+    screen._advisor_save_btn.click()
+    assert db.get_setting("advisor_redact") == "1"
+
+
+def test_settings_redaction_off_by_default(qtbot):
+    db = _make_db()
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    assert not screen._advisor_redact_cb.isChecked()
+
+
+def test_settings_loads_saved_redaction(qtbot):
+    db = _make_db()
+    db.set_setting("ai_advisor_enabled", "1")
+    db.set_setting("advisor_redact", "1")
+    screen = SettingsScreen(_all_present(), db=db)
+    qtbot.addWidget(screen)
+    assert screen._advisor_redact_cb.isChecked()

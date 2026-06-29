@@ -142,6 +142,9 @@ class ScanViewScreen(QWidget):
         if not companies:
             self._status_label.setText("No companies registered.")
             return
+        self._severity_panel.reset()
+        self._finding_cards_panel.reset()
+        self._terminal_panel.clear()
         self._batch_worker = BatchScanWorker(companies=companies, db=self._db)
         self._batch_worker.finding_discovered.connect(self._finding_cards_panel.add_finding)
         self._batch_worker.finding_discovered.connect(self._severity_panel.add_finding)
@@ -149,15 +152,41 @@ class ScanViewScreen(QWidget):
         self._batch_worker.company_started.connect(
             lambda name, idx: self._status_label.setText(f"Scanning {name}…")
         )
-        self._batch_worker.batch_complete.connect(
-            lambda n, total: self._status_label.setText(
-                f"Batch complete — {n} companies, {total} findings"
-            )
-        )
+        self._batch_worker.batch_complete.connect(self._on_batch_complete)
         self._batch_worker.finished.connect(self._batch_worker.deleteLater)
         self._batch_btn.setEnabled(False)
-        self._batch_worker.batch_complete.connect(lambda *_: self._batch_btn.setEnabled(True))
         self._batch_worker.start()
+
+    def _on_batch_complete(self, n: int, total: int) -> None:
+        self._status_label.setText(
+            f"Batch complete — {n} companies, {total} findings"
+        )
+        self._batch_btn.setEnabled(True)
+        scan_ids = list(getattr(self._batch_worker, "scan_ids", []))
+        if scan_ids:
+            self._export_consolidated(scan_ids)
+
+    def _export_consolidated(self, scan_ids: list) -> None:
+        if not self._db:
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Consolidated Report",
+            "SecureOps_Consolidated_Report.pdf", "PDF Files (*.pdf)",
+        )
+        if not path:
+            return
+        try:
+            from report.consolidated import (
+                ConsolidatedPdfGenerator, build_consolidated_data,
+            )
+            data = build_consolidated_data(self._db, scan_ids)
+            ConsolidatedPdfGenerator(data, output_path=path).generate()
+            from PyQt6.QtGui import QDesktopServices
+            from PyQt6.QtCore import QUrl
+            import os
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
+        except Exception as exc:
+            self._status_label.setText(f"Consolidated export failed: {exc}")
 
     def _on_company_selected(self, company: dict) -> None:
         import json

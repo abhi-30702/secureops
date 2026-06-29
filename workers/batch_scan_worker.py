@@ -23,6 +23,9 @@ class BatchScanWorker(QThread):
         self._companies = companies
         self._db = db
         self._stop = threading.Event()
+        # Scan ids created during the run, in order — used to assemble the
+        # consolidated cross-company report after the batch completes.
+        self.scan_ids: list[int] = []
 
     def stop(self) -> None:
         self._stop.set()
@@ -59,6 +62,7 @@ class BatchScanWorker(QThread):
                     finished_at=None,
                 )
                 scan_id = self._db.insert_scan(scan)
+                self.scan_ids.append(scan_id)
 
                 count = self._run_company(domain, scan_id)
                 self._db.update_scan_status(scan_id, "complete", datetime.now(timezone.utc).isoformat())

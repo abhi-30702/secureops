@@ -340,21 +340,47 @@ class ReportScreen(QWidget):
     def _on_run_advisor(self) -> None:
         if not self._db or self._scan_id is None:
             return
-        api_key = self._db.get_setting("gemini_api_key") or ""
-        if not api_key:
-            if self._advisor_status:
-                self._advisor_status.setText("No API key — add one in Settings.")
-            return
 
-        reply = QMessageBox.question(
-            self,
-            "Send data to Gemini?",
-            "Scan findings (target, subdomains, ports, vulnerabilities) will be sent "
-            "to Google Gemini API to generate advisory recommendations.\n\n"
-            "This data will leave your machine. Do you want to proceed?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+        backend = self._db.get_setting("advisor_backend") or "gemini"
+        redact = self._db.get_setting("advisor_redact") == "1"
+        api_key = self._db.get_setting("gemini_api_key") or ""
+
+        if backend == "ollama":
+            # Local backend (FR-54): data never leaves the machine, so no
+            # external-transmission consent is required — just a brief notice.
+            model = self._db.get_setting("ollama_model") or "llama3"
+            reply = QMessageBox.question(
+                self,
+                "Run local AI Advisor?",
+                f"Scan findings will be analysed locally by Ollama (model: {model}). "
+                "No data leaves your machine.\n\nProceed?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+            status_text = f"Analysing locally with Ollama ({model})…"
+        else:
+            if not api_key:
+                if self._advisor_status:
+                    self._advisor_status.setText("No API key — add one in Settings.")
+                return
+            redaction_note = (
+                "Identifying details (company name, hostnames, IPs) will be redacted "
+                "before sending.\n\n"
+                if redact else
+                "This includes the target, subdomains, ports and vulnerabilities, and "
+                "will leave your machine.\n\n"
+            )
+            reply = QMessageBox.question(
+                self,
+                "Send data to Gemini?",
+                "Scan findings will be sent to the Google Gemini API to generate "
+                "advisory recommendations.\n\n"
+                + redaction_note +
+                "Do you want to proceed?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            status_text = "Contacting Gemini API…"
         if reply != QMessageBox.StandardButton.Yes:
             return
 
@@ -370,7 +396,7 @@ class ReportScreen(QWidget):
             self._run_advisor_btn.setText("Analyzing…")
             self._run_advisor_btn.setEnabled(False)
         if self._advisor_status:
-            self._advisor_status.setText("Contacting Gemini API…")
+            self._advisor_status.setText(status_text)
 
         from advisor.worker import AdvisorWorker
         self._advisor_worker = AdvisorWorker(
@@ -478,10 +504,14 @@ class ReportScreen(QWidget):
             i for i in self._db.query_advisory_items_by_scan(self._scan_id)
             if i.accepted
         ]
+        incident_events = self._db.get_incident_events(self._scan_id)
+        osint_items = self._db.get_osint_items(self._scan_id)
         try:
             from report.pdf_generator import PdfGenerator
             PdfGenerator(scan=scan, hosts=hosts, findings=findings,
-                         output_path=path, advisory_items=advisory_items).generate()
+                         output_path=path, advisory_items=advisory_items,
+                         incident_events=incident_events,
+                         osint_items=osint_items).generate()
             QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))

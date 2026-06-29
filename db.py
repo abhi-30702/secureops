@@ -268,6 +268,13 @@ class DB:
             for r in rows
         ]
 
+    def count_incident_events(self) -> int:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT COUNT(*) FROM incident_events"
+            ).fetchone()
+        return row[0] if row else 0
+
     def insert_osint_item(self, item: dict) -> int:
         with self._lock:
             cur = self._conn.execute(

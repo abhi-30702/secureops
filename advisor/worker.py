@@ -64,7 +64,8 @@ class AdvisorWorker(QThread):
 
             from advisor.prompt_builder import PromptBuilder
 
-            prompt = PromptBuilder().build(scan, client, hosts, findings)
+            redact = self._db.get_setting("advisor_redact") == "1"
+            prompt = PromptBuilder(redact=redact).build(scan, client, hosts, findings)
 
             backend = self._db.get_setting("advisor_backend") or "gemini"
             if backend == "ollama":

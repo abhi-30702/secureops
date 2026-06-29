@@ -65,3 +65,50 @@ def test_prompt_no_client_uses_unknown_firewall():
 def test_prompt_no_exploitation_instruction():
     prompt = PromptBuilder().build(_scan(), _client(), [], [])
     assert "exploitation" in prompt.lower() or "offensive" in prompt.lower()
+
+
+# ── redaction (FR-53) ───────────────────────────────────────────────────────────
+
+def test_redact_strips_target_domain():
+    prompt = PromptBuilder(redact=True).build(_scan(), _client(), [_host()], [])
+    assert "example.com" not in prompt
+    assert "[HOST]" in prompt
+
+
+def test_redact_strips_subdomain():
+    prompt = PromptBuilder(redact=True).build(_scan(), _client(), [_host()], [])
+    assert "api.example.com" not in prompt
+
+
+def test_redact_strips_ip():
+    f = Finding(id=1, scan_id=1, host_id=None, tool="nuclei", severity="high",
+                title="Exposed admin", description="Admin panel at 1.2.3.4 reachable",
+                raw_json="{}", created_at="2026-06-03T10:01:00")
+    prompt = PromptBuilder(redact=True).build(_scan(), _client(), [], [f])
+    assert "1.2.3.4" not in prompt
+    assert "[IP]" in prompt
+
+
+def test_redact_strips_company_name():
+    f = Finding(id=1, scan_id=1, host_id=None, tool="nuclei", severity="high",
+                title="Acme login exposed", description="Acme portal leak",
+                raw_json="{}", created_at="2026-06-03T10:01:00")
+    prompt = PromptBuilder(redact=True).build(_scan(), _client(), [], [f])
+    assert "Acme" not in prompt
+    assert "[COMPANY]" in prompt
+
+
+def test_redact_off_by_default_keeps_details():
+    f = Finding(id=1, scan_id=1, host_id=None, tool="nuclei", severity="high",
+                title="Exposed admin", description="Admin panel at 1.2.3.4 reachable",
+                raw_json="{}", created_at="2026-06-03T10:01:00")
+    prompt = PromptBuilder().build(_scan(), _client(), [_host()], [f])
+    assert "example.com" in prompt
+    assert "1.2.3.4" in prompt
+
+
+def test_redact_preserves_finding_severity():
+    prompt = PromptBuilder(redact=True).build(_scan(), _client(), [], [_finding()])
+    # Redaction must not destroy the security content itself.
+    assert "HIGH" in prompt
+    assert "SQL Injection" in prompt

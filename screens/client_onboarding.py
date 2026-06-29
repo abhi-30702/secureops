@@ -1,11 +1,13 @@
 import json
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QListWidget,
-    QPushButton, QFormLayout, QLineEdit, QComboBox, QFrame,
+    QFormLayout, QLineEdit, QComboBox,
 )
-from PyQt6.QtGui import QFont
 from db import DB
-from screens.widgets.theme import TXT, ACCENT, BORDER, SUCCESS
+from screens.widgets import theme as T
+from screens.widgets.components import (
+    PageHeader, Card, PrimaryButton, SecondaryButton, DangerButton,
+)
 
 _FIREWALL_OPTS = ["None", "pfSense", "Cisco ASA", "Fortinet", "Palo Alto", "Other"]
 
@@ -21,95 +23,81 @@ class ClientOnboardingScreen(QWidget):
             self._load_companies()
 
     def _build_ui(self):
-        root = QHBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 20)
-        root.setSpacing(0)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
+        root.setSpacing(T.SP_LG)
 
-        # Left panel: company list
-        left = QVBoxLayout()
-        left.setSpacing(8)
-        hdr = QLabel("Companies")
-        hdr.setFont(QFont("DM Sans", 14, QFont.Weight.Bold))
-        hdr.setStyleSheet(f"color: {ACCENT};")
-        left.addWidget(hdr)
+        root.addWidget(PageHeader(
+            "Companies", "Register Fidelitus subsidiaries and their assets"
+        ))
 
+        body = QHBoxLayout()
+        body.setSpacing(T.SP_LG)
+
+        # ── Left: company list card ──────────────────────────────────────────
+        list_card = Card("Subsidiaries")
         self._company_list = QListWidget()
-        self._company_list.setFixedWidth(210)
+        self._company_list.setMinimumWidth(220)
         self._company_list.currentRowChanged.connect(self._on_company_selected)
-        left.addWidget(self._company_list)
+        list_card.add(self._company_list, stretch=1)
 
         btn_row = QHBoxLayout()
-        self._add_btn = QPushButton("＋ Add")
+        btn_row.setSpacing(T.SP_SM)
+        self._add_btn = SecondaryButton("＋ Add", "Create a new company")
         self._add_btn.clicked.connect(self._on_add)
-        self._delete_btn = QPushButton("✕ Delete")
+        self._delete_btn = DangerButton("✕ Delete", "Delete the selected company")
         self._delete_btn.clicked.connect(self._on_delete)
         btn_row.addWidget(self._add_btn)
         btn_row.addWidget(self._delete_btn)
-        left.addLayout(btn_row)
+        list_card.add_layout(btn_row)
+        body.addWidget(list_card, stretch=0)
 
-        left_w = QWidget()
-        left_w.setLayout(left)
-        root.addWidget(left_w)
-
-        # Divider
-        div = QFrame()
-        div.setFrameShape(QFrame.Shape.VLine)
-        div.setStyleSheet(f"color: {BORDER};")
-        root.addWidget(div)
-
-        # Right panel: edit form
-        right = QVBoxLayout()
-        right.setContentsMargins(20, 0, 0, 0)
-        right.setSpacing(12)
-
-        form_hdr = QLabel("Company Details")
-        form_hdr.setFont(QFont("DM Sans", 13, QFont.Weight.Bold))
-        form_hdr.setStyleSheet(f"color: {TXT};")
-        right.addWidget(form_hdr)
-
+        # ── Right: details form card ─────────────────────────────────────────
+        form_card = Card("Company Details")
         form = QFormLayout()
-        form.setSpacing(10)
+        form.setSpacing(T.SP_MD)
+        form.setLabelAlignment(form.labelAlignment())
 
         self._name_input = QLineEdit()
         self._name_input.setPlaceholderText("Fidelitus Tech")
-        form.addRow("Name:", self._name_input)
+        form.addRow("Name", self._name_input)
 
         self._domains_input = QLineEdit()
         self._domains_input.setPlaceholderText("example.com, sub.example.com")
-        form.addRow("Domains:", self._domains_input)
+        form.addRow("Domains", self._domains_input)
 
         self._ip_ranges_input = QLineEdit()
         self._ip_ranges_input.setPlaceholderText("192.168.1.0/24, 10.0.0.0/24")
-        form.addRow("IP Ranges:", self._ip_ranges_input)
+        form.addRow("IP Ranges", self._ip_ranges_input)
 
         self._aws_profile_input = QLineEdit()
         self._aws_profile_input.setPlaceholderText("default")
-        form.addRow("AWS Profile:", self._aws_profile_input)
+        form.addRow("AWS Profile", self._aws_profile_input)
 
         self._gcp_project_input = QLineEdit()
         self._gcp_project_input.setPlaceholderText("my-gcp-project-123")
-        form.addRow("GCP Project:", self._gcp_project_input)
+        form.addRow("GCP Project", self._gcp_project_input)
 
         self._firewall_combo = QComboBox()
         self._firewall_combo.addItems(_FIREWALL_OPTS)
-        form.addRow("Firewall:", self._firewall_combo)
+        form.addRow("Firewall", self._firewall_combo)
 
-        right.addLayout(form)
+        form_card.add_layout(form)
 
-        self._save_btn = QPushButton("Save")
+        save_row = QHBoxLayout()
+        self._save_btn = PrimaryButton("Save", "Save company details")
         self._save_btn.setEnabled(False)
         self._save_btn.clicked.connect(self._on_save)
-        right.addWidget(self._save_btn)
-
         self._status_label = QLabel("")
-        self._status_label.setStyleSheet(f"color: {SUCCESS}; font-size: 11px;")
-        right.addWidget(self._status_label)
+        self._status_label.setStyleSheet(f"color: {T.SUCCESS}; font-size: {T.FS_SMALL}px;")
+        save_row.addWidget(self._save_btn)
+        save_row.addWidget(self._status_label)
+        save_row.addStretch()
+        form_card.add_layout(save_row)
+        form_card.body().addStretch()
 
-        right.addStretch()
-
-        right_w = QWidget()
-        right_w.setLayout(right)
-        root.addWidget(right_w, 1)
+        body.addWidget(form_card, stretch=1)
+        root.addLayout(body, stretch=1)
 
     def _load_companies(self):
         self._company_list.clear()

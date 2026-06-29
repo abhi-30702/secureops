@@ -31,13 +31,15 @@ class SettingsScreen(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
+        from screens.widgets import theme as T
+        from screens.widgets.components import PageHeader
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
+        layout.setSpacing(T.SP_LG)
 
-        title = QLabel("Settings")
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {TXT};")
-        layout.addWidget(title)
+        layout.addWidget(PageHeader(
+            "Settings", "Tool paths, scan schedules, subnets & AI Advisor"
+        ))
 
         section_label = QLabel("TOOL STATUS")
         section_label.setStyleSheet(f"color: {TXT3}; font-size: 10px; letter-spacing: 1px;")

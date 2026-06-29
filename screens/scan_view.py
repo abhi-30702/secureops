@@ -11,6 +11,7 @@ from screens.widgets.severity_rings import SeverityRings
 from screens.widgets.finding_cards import FindingCards
 from screens.widgets.company_selector import CompanySelector
 from screens.widgets.theme import TXT, TXT3, CARD
+from screens.widgets import theme as T
 
 
 class ScanViewScreen(QWidget):
@@ -40,8 +41,8 @@ class ScanViewScreen(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
+        layout.setSpacing(T.SP_MD)
 
         if self._db:
             self._company_selector = CompanySelector(db=self._db)
@@ -107,9 +108,10 @@ class ScanViewScreen(QWidget):
 
         self._terminal_panel = QPlainTextEdit()
         self._terminal_panel.setReadOnly(True)
-        self._terminal_panel.setObjectName("panel")
         self._terminal_panel.setStyleSheet(
-            f"font-family: monospace; font-size: 11px; color: {CARD}; background-color: #2A1F45;"
+            f"background: {T.TERMINAL_BG}; color: {T.TERMINAL_TXT}; "
+            f"font-family: {T.FONT_MONO}; font-size: {T.FS_SMALL}px; "
+            f"border-radius: {T.RADIUS_MD}px;"
         )
 
         top_splitter = QSplitter(Qt.Orientation.Horizontal)

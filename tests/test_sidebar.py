@@ -1,18 +1,18 @@
 import pytest
 from PyQt6.QtCore import Qt
-from sidebar import Sidebar, COLLAPSED_WIDTH, EXPANDED_WIDTH
+from sidebar import Sidebar, COLLAPSED_WIDTH, EXPANDED_WIDTH, SIDEBAR_WIDTH
 
 
-def test_sidebar_has_eight_nav_buttons(qtbot):
+def test_sidebar_has_nine_nav_buttons(qtbot):
     sidebar = Sidebar()
     qtbot.addWidget(sidebar)
-    assert len(sidebar._buttons) == 9
+    assert len([b for b in sidebar._buttons if b is not None]) == 9
 
 
-def test_sidebar_starts_collapsed(qtbot):
+def test_sidebar_has_fixed_width(qtbot):
     sidebar = Sidebar()
     qtbot.addWidget(sidebar)
-    assert sidebar.maximumWidth() == COLLAPSED_WIDTH
+    assert sidebar.width() == SIDEBAR_WIDTH or sidebar.maximumWidth() == SIDEBAR_WIDTH
 
 
 def test_sidebar_emits_screen_changed_on_click(qtbot):

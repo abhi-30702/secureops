@@ -31,21 +31,18 @@ class ReportScreen(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
+        from screens.widgets import theme as T
+        from screens.widgets.components import PageHeader, PrimaryButton
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(12)
+        layout.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
+        layout.setSpacing(T.SP_MD)
 
-        top_bar = QHBoxLayout()
-        title = QLabel("Security Report")
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {TXT};")
-        self._export_btn = QPushButton("Export PDF")
+        header = PageHeader("Security Report", "Findings assembled into a client-ready report")
+        self._export_btn = PrimaryButton("⤓  Export PDF", "Export this report as a PDF")
         self._export_btn.setEnabled(False)
-        self._export_btn.setFixedWidth(130)
         self._export_btn.clicked.connect(self.export_pdf)
-        top_bar.addWidget(title)
-        top_bar.addStretch()
-        top_bar.addWidget(self._export_btn)
-        layout.addLayout(top_bar)
+        header.add_action(self._export_btn)
+        layout.addWidget(header)
 
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)

@@ -13,13 +13,26 @@ def db():
 
 @pytest.fixture(autouse=True)
 def process_events():
-    """Flush pending Qt events after every test.
+    """Flush pending Qt events and join lingering worker threads after each test.
 
-    This prevents dangling QThread signals / deferred deletions from
-    leaking into the next test and causing a segfault inside
-    pytestqt's _process_events during teardown.
+    Tests that .start() a QThread typically wait on a completion signal, which
+    fires *before* run() fully returns. The thread can still be executing its
+    final lines (e.g. a DB status write) when the test's in-memory DB is torn
+    down — a rare 'Cannot operate on a closed database' race, or a segfault in
+    pytestqt teardown. Draining events and waiting for any still-running
+    QThreads to finish closes that window deterministically.
     """
+    from PyQt6.QtCore import QThread
+
     yield
+
     app = QApplication.instance()
-    if app is not None:
-        app.processEvents()
+    if app is None:
+        return
+    app.processEvents()
+    # Give any worker thread that just emitted its completion signal time to
+    # finish run() and be joined before the next test starts.
+    for obj in app.findChildren(QThread):
+        if obj.isRunning():
+            obj.wait(2000)
+    app.processEvents()

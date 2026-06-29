@@ -31,10 +31,6 @@ class SchedulePanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
-        hdr = QLabel("Scheduled Scans")
-        hdr.setStyleSheet(f"color: {ACCENT}; font-weight: bold; font-size: 12px;")
-        layout.addWidget(hdr)
-
         self._table = QTableWidget(0, 3)
         self._table.setHorizontalHeaderLabels(["Target", "Interval", "Next Due"])
         self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)

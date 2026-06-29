@@ -15,6 +15,7 @@ from screens.widgets.finding_cards import FindingCards
 from screens.widgets.company_selector import CompanySelector
 from workers.internal_worker import InternalWorker
 from screens.widgets.theme import BG, ACCENT, TXT as TEXT, CARD as SURFACE, ACCENT_H as HOVER, CRITICAL, SUCCESS
+from screens.widgets import theme as T
 
 
 class InternalPage(QWidget):
@@ -42,8 +43,13 @@ class InternalPage(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
+        layout.setSpacing(T.SP_MD)
+
+        from screens.widgets.components import PageHeader
+        layout.addWidget(PageHeader(
+            "Internal Network", "Subnet sweep, device fingerprinting & topology"
+        ))
 
         if self._db:
             self._company_selector = CompanySelector(db=self._db)
@@ -91,9 +97,10 @@ class InternalPage(QWidget):
         self._finding_cards = FindingCards()
         self._terminal = QPlainTextEdit()
         self._terminal.setReadOnly(True)
-        self._terminal.setObjectName("panel")
         self._terminal.setStyleSheet(
-            f"font-family: monospace; font-size: 11px; color: {TEXT}; background-color: {BG};"
+            f"background: {T.TERMINAL_BG}; color: {T.TERMINAL_TXT}; "
+            f"font-family: {T.FONT_MONO}; font-size: {T.FS_SMALL}px; "
+            f"border-radius: {T.RADIUS_MD}px;"
         )
 
         right_panel = QWidget()

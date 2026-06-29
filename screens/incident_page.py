@@ -13,6 +13,8 @@ from screens.widgets.severity_rings import SeverityRings
 from screens.widgets.finding_cards import FindingCards
 from workers.incident_worker import IncidentWorker
 from screens.widgets.theme import BG, ACCENT, TXT as TEXT, CARD as SURFACE, ACCENT_H as HOVER, CRITICAL, SUCCESS, TXT2
+from screens.widgets import theme as T
+from screens.widgets.components import PageHeader
 
 
 class IncidentPage(QWidget):
@@ -37,8 +39,12 @@ class IncidentPage(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
+        layout.setSpacing(T.SP_MD)
+
+        layout.addWidget(PageHeader(
+            "Incident Response", "Log analysis, IOC scan & breach timeline"
+        ))
 
         # --- top bar ---
         top_bar = QHBoxLayout()
@@ -86,7 +92,9 @@ class IncidentPage(QWidget):
         self._terminal = QPlainTextEdit()
         self._terminal.setReadOnly(True)
         self._terminal.setStyleSheet(
-            f"font-family: monospace; font-size: 11px; color: {TEXT}; background: {BG};"
+            f"background: {T.TERMINAL_BG}; color: {T.TERMINAL_TXT}; "
+            f"font-family: {T.FONT_MONO}; font-size: {T.FS_SMALL}px; "
+            f"border-radius: {T.RADIUS_MD}px;"
         )
 
         right_panel = QWidget()

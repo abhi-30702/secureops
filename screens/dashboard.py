@@ -1,40 +1,17 @@
 from datetime import datetime, timezone
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
 )
 from tool_checker import is_critical_missing
 from screens.widgets.threat_feed import ThreatFeed
-from screens.widgets.theme import TXT, TXT3, HIGH, SEVERITY_COLORS
+from screens.widgets import theme as T
+from screens.widgets.components import PageHeader, Card, StatCard, SectionLabel
 
 
-class MetricCard(QFrame):
-    def __init__(self, title: str, parent=None):
-        super().__init__(parent)
-        self.title = title
-        self.setObjectName("panel")
-        self.setMinimumHeight(80)
-
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        title_label = QLabel(title)
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setStyleSheet(
-            f"color: {TXT3}; font-size: 11px; text-transform: uppercase;"
-        )
-
-        self._value_label = QLabel("0")
-        self._value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._value_label.setStyleSheet(
-            f"font-size: 28px; font-weight: bold; color: {TXT};"
-        )
-
-        layout.addWidget(title_label)
-        layout.addWidget(self._value_label)
-
-    def set_value(self, n: int) -> None:
-        self._value_label.setText(str(n))
+# Retained for backwards compatibility with existing tests.
+class MetricCard(StatCard):
+    pass
 
 
 class LiveSeverityStrip(QWidget):
@@ -43,13 +20,14 @@ class LiveSeverityStrip(QWidget):
         self._counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
         self._labels: dict[str, QLabel] = {}
         layout = QHBoxLayout(self)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(24)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(T.SP_XL)
         for sev in ["critical", "high", "medium", "low"]:
             lbl = QLabel()
             lbl.setTextFormat(Qt.TextFormat.RichText)
             self._labels[sev] = lbl
             layout.addWidget(lbl)
+        layout.addStretch()
         self._refresh_labels()
 
     def set_counts(self, critical: int = 0, high: int = 0, medium: int = 0, low: int = 0) -> None:
@@ -58,22 +36,13 @@ class LiveSeverityStrip(QWidget):
 
     def _refresh_labels(self) -> None:
         for sev, lbl in self._labels.items():
-            color = SEVERITY_COLORS.get(sev, TXT3)
+            color = T.SEVERITY_COLORS.get(sev, T.TXT3)
             count = self._counts[sev]
-            lbl.setText(f"<span style='color:{color}'>●</span>  {sev.capitalize()}  <b>{count}</b>")
-
-
-def _placeholder_panel(label_text: str) -> QFrame:
-    frame = QFrame()
-    frame.setObjectName("panel")
-    layout = QVBoxLayout(frame)
-    layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    label = QLabel(label_text)
-    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    label.setStyleSheet(f"color: {TXT3}; font-size: 12px;")
-    label.setWordWrap(True)
-    layout.addWidget(label)
-    return frame
+            lbl.setText(
+                f"<span style='color:{color}; font-size:16px'>●</span>  "
+                f"<span style='color:{T.TXT2}'>{sev.capitalize()}</span>  "
+                f"<b style='color:{T.TXT}'>{count}</b>"
+            )
 
 
 class DashboardScreen(QWidget):
@@ -81,7 +50,7 @@ class DashboardScreen(QWidget):
         super().__init__(parent)
         self._tool_results = tool_results
         self._db = db
-        self._metric_cards: list[MetricCard] = []
+        self._metric_cards: list[StatCard] = []
         self._warning_banner: QLabel | None = None
         self._severity_strip: LiveSeverityStrip | None = None
         self._threat_feed: ThreatFeed | None = None
@@ -93,49 +62,69 @@ class DashboardScreen(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
+        layout.setSpacing(T.SP_LG)
 
-        self._warning_banner = QLabel("⚠  Critical tools missing — check Settings")
+        header = PageHeader("SOC Dashboard", "Live security posture across Fidelitus Corp")
+        self._updated_label = QLabel("")
+        self._updated_label.setStyleSheet(f"color: {T.TXT3}; font-size: {T.FS_TINY}px;")
+        header.add_action(self._updated_label)
+        layout.addWidget(header)
+
+        self._warning_banner = QLabel("⚠  Critical tools missing — open Settings to resolve")
         self._warning_banner.setStyleSheet(
-            f"background-color: #FFF0D0; color: {HIGH}; "
-            f"padding: 6px 12px; border: 1px solid {HIGH}; border-radius: 4px;"
+            f"background-color: #FBEED6; color: {T.HIGH}; padding: 8px 14px; "
+            f"border: 1px solid {T.HIGH}; border-radius: {T.RADIUS_SM}px; font-weight: 600;"
         )
         self._warning_banner.setVisible(is_critical_missing(self._tool_results))
         layout.addWidget(self._warning_banner)
 
+        # Metric tiles
         cards_row = QHBoxLayout()
+        cards_row.setSpacing(T.SP_LG)
+        accents = {
+            "Clients": T.ACCENT, "Scans": T.ACCENT,
+            "Findings": T.MEDIUM, "Incidents": T.CRITICAL,
+        }
         for title in ("Clients", "Scans", "Findings", "Incidents"):
-            card = MetricCard(title)
+            card = StatCard(title, accent=accents.get(title, T.ACCENT))
             self._metric_cards.append(card)
             cards_row.addWidget(card)
         layout.addLayout(cards_row)
 
+        # Severity overview card
+        sev_card = Card("Open Findings by Severity")
+        self._severity_strip = LiveSeverityStrip()
+        sev_card.add(self._severity_strip)
+        layout.addWidget(sev_card)
+
+        # Middle: schedules + threat feed side by side
         middle_row = QHBoxLayout()
+        middle_row.setSpacing(T.SP_LG)
+
+        sched_card = Card("Scheduled Scans")
         if self._db:
             from screens.widgets.schedule_panel import SchedulePanel
             self._schedule_panel = SchedulePanel(db=self._db)
-            middle_row.addWidget(self._schedule_panel, stretch=1)
+            sched_card.add(self._schedule_panel, stretch=1)
         else:
-            middle_row.addWidget(
-                _placeholder_panel("Scheduled Scans\n(DB not available)"), stretch=1
-            )
+            ph = QLabel("DB not available")
+            ph.setStyleSheet(f"color: {T.TXT3}; font-size: {T.FS_SMALL}px;")
+            sched_card.add(ph)
+        middle_row.addWidget(sched_card, stretch=1)
+
+        feed_card = Card("Threat Feed")
         self._threat_feed = ThreatFeed()
-        middle_row.addWidget(self._threat_feed, stretch=1)
-        layout.addLayout(middle_row)
+        feed_card.add(self._threat_feed, stretch=1)
+        middle_row.addWidget(feed_card, stretch=1)
+        layout.addLayout(middle_row, stretch=1)
 
-        self._severity_strip = LiveSeverityStrip()
-        layout.addWidget(self._severity_strip)
-
+        # Delta alerts strip
+        delta_card = Card("Changes Since Last Scan")
         from screens.widgets.delta_panel import DeltaPanel
         self._delta_panel = DeltaPanel()
-        layout.addWidget(self._delta_panel)
-
-        self._updated_label = QLabel("")
-        self._updated_label.setStyleSheet(f"color: {TXT3}; font-size: 10px;")
-        layout.addWidget(self._updated_label)
-
-        layout.addStretch()
+        delta_card.add(self._delta_panel)
+        layout.addWidget(delta_card)
 
         if self._db:
             self._timer = QTimer(self)
@@ -184,4 +173,4 @@ class DashboardScreen(QWidget):
 
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
         if self._updated_label:
-            self._updated_label.setText(f"Updated {ts}")
+            self._updated_label.setText(f"Updated {ts} UTC")

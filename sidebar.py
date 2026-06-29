@@ -1,19 +1,24 @@
-from PyQt6.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel
 
-COLLAPSED_WIDTH = 52
-EXPANDED_WIDTH = 180
+from screens.widgets import theme as T
 
+# Fixed, always-labelled rail. Constants kept for backwards-compatible imports.
+SIDEBAR_WIDTH = 212
+COLLAPSED_WIDTH = SIDEBAR_WIDTH
+EXPANDED_WIDTH = SIDEBAR_WIDTH
+
+# (icon, label, screen_index, group) — display order; screen_index targets the stack.
 _NAV_ITEMS = [
-    ("⊞", "Dashboard", 0),
-    ("+", "New Client", 1),
-    ("⚡", "Scan", 2),
-    ("📄", "Report", 3),
-    ("⚙", "Settings", 4),
-    ("⬡", "Internal", 5),
-    ("🔥", "Incident", 6),
-    ("🔍", "OSINT", 7),
-    ("☁", "Cloud", 8),
+    ("▣", "Dashboard", 0, "Monitor"),
+    ("⚡", "Scan", 2, "Assess"),
+    ("⬡", "Internal", 5, "Assess"),
+    ("☁", "Cloud", 8, "Assess"),
+    ("\U0001f50d", "OSINT", 7, "Assess"),
+    ("\U0001f525", "Incident", 6, "Respond"),
+    ("\U0001f4c4", "Report", 3, "Manage"),
+    ("＋", "Companies", 1, "Manage"),
+    ("⚙", "Settings", 4, "Manage"),
 ]
 
 
@@ -24,48 +29,54 @@ class Sidebar(QWidget):
         super().__init__(parent)
         self.setObjectName("sidebar")
         self._active_index = 0
-        self._buttons: list[QPushButton] = []
+        # Buttons indexed by screen index (so _buttons[i] navigates to screen i),
+        # regardless of the grouped display order. main_window + tests rely on this.
+        self._buttons: list[QPushButton | None] = [None] * 9
         self._setup_ui()
-        self._setup_animation()
 
     def _setup_ui(self):
-        self.setMinimumWidth(COLLAPSED_WIDTH)
-        self.setMaximumWidth(COLLAPSED_WIDTH)
+        self.setFixedWidth(SIDEBAR_WIDTH)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        logo = QLabel("🔒")
-        logo.setFixedHeight(52)
-        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo.setStyleSheet("font-size: 20px;")
+        logo = QLabel("\U0001f512  SecureOps")
+        logo.setFixedHeight(56)
+        logo.setContentsMargins(18, 0, 0, 0)
+        logo.setStyleSheet(
+            f"color: {T.ACCENT}; font-size: {T.FS_TITLE}px; font-weight: bold;"
+        )
         layout.addWidget(logo)
 
-        for icon, label, index in _NAV_ITEMS:
-            btn = QPushButton(icon)
+        current_group = None
+        for icon, label, index, group in _NAV_ITEMS:
+            if group != current_group:
+                current_group = group
+                hdr = QLabel(group.upper())
+                hdr.setContentsMargins(18, 10, 0, 4)
+                hdr.setStyleSheet(T.overline(T.TXT3, T.FS_TINY))
+                layout.addWidget(hdr)
+
+            btn = QPushButton(f"  {icon}   {label}")
             btn.setObjectName("nav-btn")
-            btn.setFixedHeight(48)
+            btn.setFixedHeight(40)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setToolTip(label)
-            btn.setProperty("active", False)
-            btn.clicked.connect(lambda checked, i=index: self._on_nav_click(i))
-            self._buttons.append(btn)
+            btn.setProperty("active", "false")
+            btn.clicked.connect(lambda _checked=False, i=index: self._on_nav_click(i))
+            self._buttons[index] = btn
             layout.addWidget(btn)
 
         layout.addStretch()
 
-        version = QLabel("v0.1.0")
+        version = QLabel("v1.2.0")
+        version.setContentsMargins(18, 0, 0, 0)
         version.setFixedHeight(32)
-        version.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        version.setStyleSheet("color: #64748b; font-size: 10px;")
+        version.setStyleSheet(f"color: {T.TXT3}; font-size: {T.FS_TINY}px;")
         layout.addWidget(version)
 
         self._refresh_active_styles()
-
-    def _setup_animation(self):
-        self._animation = QPropertyAnimation(self, b"maximumWidth")
-        self._animation.setDuration(150)
-        self._animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
     def _on_nav_click(self, index: int):
         self._active_index = index
@@ -74,23 +85,11 @@ class Sidebar(QWidget):
 
     def _refresh_active_styles(self):
         for i, btn in enumerate(self._buttons):
-            btn.setProperty("active", str(i == self._active_index).lower())
+            if btn is None:
+                continue
+            btn.setProperty("active", "true" if i == self._active_index else "false")
             btn.style().unpolish(btn)
             btn.style().polish(btn)
-
-    def enterEvent(self, event):
-        self._animate_to(EXPANDED_WIDTH)
-        super().enterEvent(event)
-
-    def leaveEvent(self, event):
-        self._animate_to(COLLAPSED_WIDTH)
-        super().leaveEvent(event)
-
-    def _animate_to(self, width: int):
-        self._animation.stop()
-        self._animation.setStartValue(self.maximumWidth())
-        self._animation.setEndValue(width)
-        self._animation.start()
 
     @property
     def active_index(self) -> int:

@@ -44,8 +44,6 @@ _ISO_MAP = {
     "subfinder": ("A.13.1", "Network security management"),
     "dnsx":      ("A.13.1", "Network security management"),
     "naabu":     ("A.13.1", "Network security management"),
-    "aws_auditor": ("A.9.4", "System and application access control"),
-    "gcp_auditor": ("A.9.4", "System and application access control"),
     "theharvester": ("A.13.2", "Information transfer"),
 }
 

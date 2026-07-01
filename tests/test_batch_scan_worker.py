@@ -14,9 +14,9 @@ def _gc_after_each():
 
 COMPANIES = [
     {"id": 1, "name": "Co A", "domains": '["a.com"]', "ip_ranges": "[]",
-     "aws_profile": "", "gcp_project": "", "firewall_type": ""},
+     "firewall_type": ""},
     {"id": 2, "name": "Co B", "domains": '["b.com"]', "ip_ranges": "[]",
-     "aws_profile": "", "gcp_project": "", "firewall_type": ""},
+     "firewall_type": ""},
 ]
 
 
@@ -74,7 +74,7 @@ def test_finding_discovered_signal_emitted():
 def test_companies_with_no_domain_skipped():
     db = _make_db()
     empty_company = {"id": 3, "name": "Empty", "domains": "[]", "ip_ranges": "[]",
-                     "aws_profile": "", "gcp_project": "", "firewall_type": ""}
+                     "firewall_type": ""}
 
     with patch("workers.batch_scan_worker.subfinder.run") as mock_sub:
         worker = BatchScanWorker(companies=[empty_company], db=db)

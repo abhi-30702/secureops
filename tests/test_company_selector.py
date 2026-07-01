@@ -12,6 +12,7 @@ def _gc_after_each():
 
 def _db_with_extra():
     db = DB(":memory:")
+    db.insert_company({"name": "AAA Test", "domains": '["aaa.com"]'})
     db.insert_company({"name": "ZZZ Test", "domains": '["zzz.com"]'})
     return db
 
@@ -20,8 +21,8 @@ def test_selector_populates_from_db(qtbot):
     db = _db_with_extra()
     sel = CompanySelector(db=db)
     qtbot.addWidget(sel)
-    # 9 seeded + 1 inserted = 10 companies
-    assert sel._combo.count() == 10
+    # No seed data; two inserted companies.
+    assert sel._combo.count() == 2
 
 
 def test_signal_emitted_on_change(qtbot):

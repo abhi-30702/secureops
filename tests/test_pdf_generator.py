@@ -137,19 +137,14 @@ def test_pdf_no_osint_section_when_empty(tmp_path):
     assert gen._osint_items == []
 
 
-def test_iso_map_covers_cloud_and_osint_tools():
+def test_iso_map_covers_osint_tool():
     from report.pdf_generator import _ISO_MAP
-    assert _ISO_MAP["aws_auditor"][0] == "A.9.4"
-    assert _ISO_MAP["gcp_auditor"][0] == "A.9.4"
     assert _ISO_MAP["theharvester"][0] == "A.13.2"
 
 
-def test_iso_section_maps_cloud_findings_not_to_default(tmp_path):
-    scan = Scan(id=1, client_id=None, target="aws:prod", status="complete",
+def test_iso_control_defaults_for_unknown_tool(tmp_path):
+    scan = Scan(id=1, client_id=None, target="example.com", status="complete",
                 started_at="2026-06-05T10:00:00+00:00", finished_at=None)
-    findings = [Finding(id=1, scan_id=1, host_id=None, tool="aws_auditor",
-                        severity="critical", title="Public S3 bucket",
-                        description="public", raw_json="",
-                        created_at=datetime.now(timezone.utc).isoformat())]
-    gen = PdfGenerator(scan=scan, hosts=[], findings=findings)
-    assert gen._iso_control("aws_auditor") == ("A.9.4", "System and application access control")
+    gen = PdfGenerator(scan=scan, hosts=[], findings=[])
+    # Unmapped tools fall back to the generic technical-vulnerability control.
+    assert gen._iso_control("some_unmapped_tool") == ("A.12.6", "Technical vulnerability management")

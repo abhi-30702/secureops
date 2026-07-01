@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Date:** 2026-06-15  
-**Owner:** Abhishek K — Fidelitus Corp  
+**Owner:** Abhishek K — the organisation  
 **Status:** Approved — ready to plan  
 
 ---
@@ -22,7 +22,7 @@ companies table (SQLite)
        ↓
 CompanySelector widget (reusable QComboBox)
        ↓ (auto-fills per screen)
-ScanView / InternalPage / OsintPage / CloudPage
+ScanView / InternalPage / OsintPage
 
 BatchScanWorker (QThread)
   → iterates companies
@@ -47,8 +47,6 @@ CREATE TABLE IF NOT EXISTS companies (
     name         TEXT NOT NULL,
     domains      TEXT DEFAULT '[]',    -- JSON array of domain strings
     ip_ranges    TEXT DEFAULT '[]',    -- JSON array e.g. ["192.168.1.0/24"]
-    aws_profile  TEXT DEFAULT '',
-    gcp_project  TEXT DEFAULT '',
     firewall_type TEXT DEFAULT '',
     created_at   TEXT
 );
@@ -74,19 +72,19 @@ Each method uses `with self._lock`. `get_companies` returns list of dicts with a
 
 ### 3.3 Pre-seed data
 
-`db.py` seeds 9 placeholder Fidelitus companies on first run (in `_ensure_seed_companies()`, called from `__init__` after schema creation). Seed only if `companies` table is empty.
+`db.py` seeds 9 placeholder the organisation companies on first run (in `_ensure_seed_companies()`, called from `__init__` after schema creation). Seed only if `companies` table is empty.
 
 ```python
 _SEED_COMPANIES = [
-    {"name": "Fidelitus Corp HQ",       "domains": '["fidelitus.com"]',         "ip_ranges": '["10.0.0.0/24"]'},
-    {"name": "Fidelitus Properties",    "domains": '["fidelitusproperties.com"]', "ip_ranges": '["10.0.1.0/24"]'},
-    {"name": "Fidelitus HR Solutions",  "domains": '["fidelitushr.com"]',        "ip_ranges": '["10.0.2.0/24"]'},
-    {"name": "Fidelitus Finance",       "domains": '["fidelitusfinance.com"]',   "ip_ranges": '["10.0.3.0/24"]'},
-    {"name": "Fidelitus Logistics",     "domains": '["fidelituslogistics.com"]', "ip_ranges": '["10.0.4.0/24"]'},
-    {"name": "Fidelitus Tech",          "domains": '["fidelitustech.com"]',      "ip_ranges": '["10.0.5.0/24"]'},
-    {"name": "Fidelitus Legal",         "domains": '["fidelituslegal.com"]',     "ip_ranges": '["10.0.6.0/24"]'},
-    {"name": "Fidelitus Healthcare",    "domains": '["fidelitushealth.com"]',    "ip_ranges": '["10.0.7.0/24"]'},
-    {"name": "Fidelitus Education",     "domains": '["fidelitusedu.com"]',       "ip_ranges": '["10.0.8.0/24"]'},
+    {"name": "the organisation HQ",       "domains": '["example.com"]',         "ip_ranges": '["10.0.0.0/24"]'},
+    {"name": "the organisation Properties",    "domains": '["exampleproperties.com"]', "ip_ranges": '["10.0.1.0/24"]'},
+    {"name": "the organisation HR Solutions",  "domains": '["examplehr.com"]',        "ip_ranges": '["10.0.2.0/24"]'},
+    {"name": "the organisation Finance",       "domains": '["examplefinance.com"]',   "ip_ranges": '["10.0.3.0/24"]'},
+    {"name": "the organisation Logistics",     "domains": '["examplelogistics.com"]', "ip_ranges": '["10.0.4.0/24"]'},
+    {"name": "the organisation Tech",          "domains": '["exampletech.com"]',      "ip_ranges": '["10.0.5.0/24"]'},
+    {"name": "the organisation Legal",         "domains": '["examplelegal.com"]',     "ip_ranges": '["10.0.6.0/24"]'},
+    {"name": "the organisation Healthcare",    "domains": '["examplehealth.com"]',    "ip_ranges": '["10.0.7.0/24"]'},
+    {"name": "the organisation Education",     "domains": '["exampleedu.com"]',       "ip_ranges": '["10.0.8.0/24"]'},
 ]
 ```
 
@@ -112,8 +110,6 @@ QHBoxLayout
     │   ├── QLineEdit _name_input
     │   ├── QLineEdit _domains_input   (comma-separated, e.g. "example.com, sub.example.com")
     │   ├── QLineEdit _ip_ranges_input (comma-separated CIDR, e.g. "192.168.1.0/24")
-    │   ├── QLineEdit _aws_profile_input
-    │   ├── QLineEdit _gcp_project_input
     │   └── QComboBox _firewall_combo
     └── QPushButton _save_btn  "Save"
     └── QLabel _status_label
@@ -162,12 +158,6 @@ Add `CompanySelector` above the target input. When a company is selected:
 
 Add `CompanySelector` above domain input. On selection:
 - `_domain_input.setText(first_domain)`
-
-### CloudPage (`screens/cloud_page.py`)
-
-Add `CompanySelector` above AWS/GCP inputs. On selection:
-- `_aws_profile.setText(company["aws_profile"])`
-- `_gcp_project.setText(company["gcp_project"])`
 
 ### InternalPage (`screens/internal_page.py`)
 
@@ -264,7 +254,6 @@ Add a "Scan All Companies" button to ScanView. It:
 | Create | `screens/widgets/company_selector.py` |
 | Modify | `screens/scan_view.py` (add CompanySelector) |
 | Modify | `screens/osint_page.py` (add CompanySelector) |
-| Modify | `screens/cloud_page.py` (add CompanySelector) |
 | Modify | `screens/internal_page.py` (add CompanySelector) |
 | Create | `workers/batch_scan_worker.py` |
 | Create | `tests/test_db_companies.py` |
@@ -276,7 +265,7 @@ Add a "Scan All Companies" button to ScanView. It:
 ## 11. Constraints
 
 - Batch scan is sequential only (FR-10 says "sequential or configurable parallel" — parallel is Phase 9)
-- `companies` table is independent of `clients` table (clients = ad-hoc, companies = Fidelitus registry)
+- `companies` table is independent of `clients` table (clients = ad-hoc, companies = the organisation registry)
 - Seeding only happens on empty DB — never overwrites user data
 - CompanySelector is optional UI enhancement — all pages still work without it (db=None guard)
 - BatchScanWorker runs a lightweight pipeline (subfinder + httpx + nuclei) — not the full 9-tool chain

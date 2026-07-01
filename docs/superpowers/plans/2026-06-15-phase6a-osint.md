@@ -542,7 +542,7 @@ class OsintPage(QWidget):
         # top bar
         top = QHBoxLayout()
         self._domain_input = QLineEdit()
-        self._domain_input.setPlaceholderText("Target domain (e.g. fidelitus.com)")
+        self._domain_input.setPlaceholderText("Target domain (e.g. example.com)")
         self._sources_input = QLineEdit("crtsh,dnsdumpster,rapiddns,certspotter,hackertarget,commoncrawl")
         self._sources_input.setFixedWidth(380)
         self._start_btn = QPushButton("▶  Start Scan")

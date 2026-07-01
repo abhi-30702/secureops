@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Date:** 2026-06-15
-**Owner:** Abhishek K — Fidelitus Corp
+**Owner:** Abhishek K — the organisation
 **Status:** Approved — ready to plan
 
 ---
@@ -11,9 +11,8 @@
 
 Phase 6a adds a dedicated OSINT (Open Source Intelligence) module to SecureOps. It wraps the `theHarvester` CLI tool to harvest emails, subdomains, IP ranges, and interesting URLs from public sources for any target domain. Results stream into a live table on `OsintPage` and are persisted in a new `osint_items` SQLite table.
 
-This is Phase 6a of a two-part Phase 6:
-- **6a (this spec):** OSINT — theHarvester wrapper + OsintPage + osint_items table
-- **6b (next session):** Cloud Audit — boto3 AWS + google-cloud GCP + CloudPage
+This is Phase 6:
+- **6 (this spec):** OSINT — theHarvester wrapper + OsintPage + osint_items table
 
 **PRD requirements covered:** FR-31, FR-32 (partial — theHarvester sources; LinkedIn/Shodan optional via API key)
 
@@ -147,8 +146,8 @@ Status: Idle — enter a domain and click Start Scan
 ┌──────────────────────────────────────────────────────────────────────┐
 │ Type        │ Value                          │ Source                │
 ├─────────────┼────────────────────────────────┼───────────────────────┤
-│ email       │ admin@fidelitus.com            │ google                │
-│ subdomain   │ mail.fidelitus.com             │ dnsdumpster           │
+│ email       │ admin@example.com            │ google                │
+│ subdomain   │ mail.example.com             │ dnsdumpster           │
 │ ip          │ 203.0.113.42                   │ crtsh                 │
 └──────────────────────────────────────────────────────────────────────┘
 [Terminal strip — raw theHarvester output]

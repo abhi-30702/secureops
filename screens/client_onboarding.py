@@ -28,14 +28,14 @@ class ClientOnboardingScreen(QWidget):
         root.setSpacing(T.SP_LG)
 
         root.addWidget(PageHeader(
-            "Companies", "Register Fidelitus subsidiaries and their assets"
+            "Companies", "Register the companies and assets you are authorised to scan"
         ))
 
         body = QHBoxLayout()
         body.setSpacing(T.SP_LG)
 
         # ── Left: company list card ──────────────────────────────────────────
-        list_card = Card("Subsidiaries")
+        list_card = Card("Company List")
         self._company_list = QListWidget()
         self._company_list.setMinimumWidth(220)
         self._company_list.currentRowChanged.connect(self._on_company_selected)
@@ -59,7 +59,7 @@ class ClientOnboardingScreen(QWidget):
         form.setLabelAlignment(form.labelAlignment())
 
         self._name_input = QLineEdit()
-        self._name_input.setPlaceholderText("Fidelitus Tech")
+        self._name_input.setPlaceholderText("Acme Corp")
         form.addRow("Name", self._name_input)
 
         self._domains_input = QLineEdit()
@@ -69,14 +69,6 @@ class ClientOnboardingScreen(QWidget):
         self._ip_ranges_input = QLineEdit()
         self._ip_ranges_input.setPlaceholderText("192.168.1.0/24, 10.0.0.0/24")
         form.addRow("IP Ranges", self._ip_ranges_input)
-
-        self._aws_profile_input = QLineEdit()
-        self._aws_profile_input.setPlaceholderText("default")
-        form.addRow("AWS Profile", self._aws_profile_input)
-
-        self._gcp_project_input = QLineEdit()
-        self._gcp_project_input.setPlaceholderText("my-gcp-project-123")
-        form.addRow("GCP Project", self._gcp_project_input)
 
         self._firewall_combo = QComboBox()
         self._firewall_combo.addItems(_FIREWALL_OPTS)
@@ -124,8 +116,6 @@ class ClientOnboardingScreen(QWidget):
         except Exception:
             ranges = c.get("ip_ranges", "")
         self._ip_ranges_input.setText(ranges)
-        self._aws_profile_input.setText(c.get("aws_profile", ""))
-        self._gcp_project_input.setText(c.get("gcp_project", ""))
         fw = c.get("firewall_type", "None")
         idx = self._firewall_combo.findText(fw)
         self._firewall_combo.setCurrentIndex(idx if idx >= 0 else 0)
@@ -137,8 +127,6 @@ class ClientOnboardingScreen(QWidget):
         self._name_input.clear()
         self._domains_input.clear()
         self._ip_ranges_input.clear()
-        self._aws_profile_input.clear()
-        self._gcp_project_input.clear()
         self._firewall_combo.setCurrentIndex(0)
         self._save_btn.setEnabled(True)
         self._company_list.clearSelection()
@@ -166,8 +154,6 @@ class ClientOnboardingScreen(QWidget):
             "name": self._name_input.text().strip() or "Unnamed Company",
             "domains": _to_json_array(self._domains_input.text()),
             "ip_ranges": _to_json_array(self._ip_ranges_input.text()),
-            "aws_profile": self._aws_profile_input.text().strip(),
-            "gcp_project": self._gcp_project_input.text().strip(),
             "firewall_type": self._firewall_combo.currentText(),
         }
         if self._selected_id is not None:

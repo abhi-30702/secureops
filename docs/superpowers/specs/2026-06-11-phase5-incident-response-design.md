@@ -1,7 +1,7 @@
 # Phase 5 — Incident Response Design Spec
 
 **Date:** 2026-06-11  
-**Owner:** Abhishek K — Fidelitus Corp  
+**Owner:** Abhishek K — the organisation  
 **Status:** Approved — ready for implementation plan
 
 ---

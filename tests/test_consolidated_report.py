@@ -81,9 +81,9 @@ def _entry(name, findings, target="x.com"):
 
 def test_consolidated_pdf_generates(tmp_path):
     data = [
-        _entry("Fidelitus HQ", [_f("Public S3 bucket", "critical", "aws_auditor")]),
-        _entry("Fidelitus Tech", [_f("Public S3 bucket", "critical", "aws_auditor"),
-                                  _f("Weak TLS", "medium", "testssl")]),
+        _entry("Acme HQ", [_f("Exposed .git directory", "high")]),
+        _entry("Globex", [_f("Exposed .git directory", "high"),
+                          _f("Weak TLS", "medium", "testssl")]),
     ]
     out = str(tmp_path / "consolidated.pdf")
     ConsolidatedPdfGenerator(data, output_path=out).generate()
@@ -120,8 +120,8 @@ def test_consolidated_summary_table_has_group_total_row(tmp_path):
 
 def test_build_consolidated_data_matches_company_and_findings():
     db = DB(":memory:")
-    companies = db.get_companies()
-    company = companies[0]
+    cid = db.insert_company({"name": "HQ Co", "domains": '["hq.com"]'})
+    company = next(c for c in db.get_companies() if c["id"] == cid)
     scan = Scan(id=None, client_id=company["id"], target="hq.com", status="complete",
                 started_at=datetime.now(timezone.utc).isoformat(), finished_at=None)
     scan_id = db.insert_scan(scan)

@@ -65,7 +65,7 @@ class DashboardScreen(QWidget):
         layout.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
         layout.setSpacing(T.SP_LG)
 
-        header = PageHeader("SOC Dashboard", "Live security posture across Fidelitus Corp")
+        header = PageHeader("SOC Dashboard", "Live security posture overview")
         self._updated_label = QLabel("")
         self._updated_label.setStyleSheet(f"color: {T.TXT3}; font-size: {T.FS_TINY}px;")
         header.add_action(self._updated_label)

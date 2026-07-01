@@ -13,7 +13,6 @@ _NAV_ITEMS = [
     ("▣", "Dashboard", 0, "Monitor"),
     ("⚡", "Scan", 2, "Assess"),
     ("⬡", "Internal", 5, "Assess"),
-    ("☁", "Cloud", 8, "Assess"),
     ("\U0001f50d", "OSINT", 7, "Assess"),
     ("\U0001f525", "Incident", 6, "Respond"),
     ("\U0001f4c4", "Report", 3, "Manage"),
@@ -31,7 +30,7 @@ class Sidebar(QWidget):
         self._active_index = 0
         # Buttons indexed by screen index (so _buttons[i] navigates to screen i),
         # regardless of the grouped display order. main_window + tests rely on this.
-        self._buttons: list[QPushButton | None] = [None] * 9
+        self._buttons: list[QPushButton | None] = [None] * 8
         self._setup_ui()
 
     def _setup_ui(self):

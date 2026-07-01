@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add the 9-company registry, per-company auto-fill on all scan pages, and a BatchScanWorker for sequential multi-company external scans.
+**Goal:** Add the company registry, per-company auto-fill on all scan pages, and a BatchScanWorker for sequential multi-company external scans.
 
-**Architecture:** `companies` table in SQLite → registry UI in `client_onboarding.py` → reusable `CompanySelector` widget → auto-fill on ScanView, OsintPage, CloudPage, InternalPage → `BatchScanWorker` for "Scan All" mode.
+**Architecture:** `companies` table in SQLite → registry UI in `client_onboarding.py` → reusable `CompanySelector` widget → auto-fill on ScanView, OsintPage, InternalPage → `BatchScanWorker` for "Scan All" mode.
 
 **Tech Stack:** PyQt6, SQLite, existing tool wrappers (subfinder, httpx, nuclei)
 
@@ -34,7 +34,7 @@ def test_seed_companies_on_empty_db(fresh_db):
     companies = fresh_db.get_companies()
     assert len(companies) == 9
     names = [c["name"] for c in companies]
-    assert "Fidelitus Corp HQ" in names
+    assert "the organisation HQ" in names
 
 
 def test_insert_and_get_company(fresh_db):
@@ -42,15 +42,13 @@ def test_insert_and_get_company(fresh_db):
         "name": "Test Co",
         "domains": '["test.com"]',
         "ip_ranges": '["10.99.0.0/24"]',
-        "aws_profile": "test-profile",
-        "gcp_project": "test-proj",
         "firewall_type": "pfSense",
     })
     companies = fresh_db.get_companies()
     found = next((c for c in companies if c["id"] == cid), None)
     assert found is not None
     assert found["name"] == "Test Co"
-    assert found["aws_profile"] == "test-profile"
+    assert found["name"] == "Test Co"
 
 
 def test_get_companies_ordered_by_name(fresh_db):
@@ -62,11 +60,11 @@ def test_get_companies_ordered_by_name(fresh_db):
 
 def test_update_company(fresh_db):
     cid = fresh_db.insert_company({"name": "Old Name", "domains": "[]"})
-    fresh_db.update_company(cid, {"name": "New Name", "aws_profile": "updated"})
+    fresh_db.update_company(cid, {"name": "New Name"})
     companies = fresh_db.get_companies()
     found = next(c for c in companies if c["id"] == cid)
     assert found["name"] == "New Name"
-    assert found["aws_profile"] == "updated"
+    assert found["name"] == "New Name"
 
 
 def test_delete_company(fresh_db):
@@ -96,8 +94,6 @@ CREATE TABLE IF NOT EXISTS companies (
     name          TEXT NOT NULL,
     domains       TEXT DEFAULT '[]',
     ip_ranges     TEXT DEFAULT '[]',
-    aws_profile   TEXT DEFAULT '',
-    gcp_project   TEXT DEFAULT '',
     firewall_type TEXT DEFAULT '',
     created_at    TEXT DEFAULT ''
 );
@@ -107,15 +103,15 @@ CREATE TABLE IF NOT EXISTS companies (
 
 ```python
 _SEED_COMPANIES = [
-    {"name": "Fidelitus Corp HQ",      "domains": '["fidelitus.com"]',         "ip_ranges": '["10.0.0.0/24"]'},
-    {"name": "Fidelitus Education",    "domains": '["fidelitusedu.com"]',      "ip_ranges": '["10.0.8.0/24"]'},
-    {"name": "Fidelitus Finance",      "domains": '["fidelitusfinance.com"]',  "ip_ranges": '["10.0.3.0/24"]'},
-    {"name": "Fidelitus Healthcare",   "domains": '["fidelitushealth.com"]',   "ip_ranges": '["10.0.7.0/24"]'},
-    {"name": "Fidelitus HR Solutions", "domains": '["fidelitushr.com"]',       "ip_ranges": '["10.0.2.0/24"]'},
-    {"name": "Fidelitus Legal",        "domains": '["fidelituslegal.com"]',    "ip_ranges": '["10.0.6.0/24"]'},
-    {"name": "Fidelitus Logistics",    "domains": '["fidelituslogistics.com"]',"ip_ranges": '["10.0.4.0/24"]'},
-    {"name": "Fidelitus Properties",   "domains": '["fidelitusproperties.com"]',"ip_ranges": '["10.0.1.0/24"]'},
-    {"name": "Fidelitus Tech",         "domains": '["fidelitustech.com"]',     "ip_ranges": '["10.0.5.0/24"]'},
+    {"name": "the organisation HQ",      "domains": '["example.com"]',         "ip_ranges": '["10.0.0.0/24"]'},
+    {"name": "the organisation Education",    "domains": '["exampleedu.com"]',      "ip_ranges": '["10.0.8.0/24"]'},
+    {"name": "the organisation Finance",      "domains": '["examplefinance.com"]',  "ip_ranges": '["10.0.3.0/24"]'},
+    {"name": "the organisation Healthcare",   "domains": '["examplehealth.com"]',   "ip_ranges": '["10.0.7.0/24"]'},
+    {"name": "the organisation HR Solutions", "domains": '["examplehr.com"]',       "ip_ranges": '["10.0.2.0/24"]'},
+    {"name": "the organisation Legal",        "domains": '["examplelegal.com"]',    "ip_ranges": '["10.0.6.0/24"]'},
+    {"name": "the organisation Logistics",    "domains": '["examplelogistics.com"]',"ip_ranges": '["10.0.4.0/24"]'},
+    {"name": "the organisation Properties",   "domains": '["exampleproperties.com"]',"ip_ranges": '["10.0.1.0/24"]'},
+    {"name": "the organisation Tech",         "domains": '["exampletech.com"]',     "ip_ranges": '["10.0.5.0/24"]'},
 ]
 ```
 
@@ -130,10 +126,9 @@ def _ensure_seed_companies(self) -> None:
             now = datetime.now(timezone.utc).isoformat()
             for c in _SEED_COMPANIES:
                 self._conn.execute(
-                    "INSERT INTO companies (name, domains, ip_ranges, aws_profile, gcp_project, firewall_type, created_at) "
-                    "VALUES (?,?,?,?,?,?,?)",
+                    "INSERT INTO companies (name, domains, ip_ranges, firewall_type, created_at) "
+                    "VALUES (?,?,?,?,?)",
                     (c["name"], c.get("domains","[]"), c.get("ip_ranges","[]"),
-                     c.get("aws_profile",""), c.get("gcp_project",""),
                      c.get("firewall_type",""), now),
                 )
             self._conn.commit()
@@ -142,11 +137,10 @@ def insert_company(self, company: dict) -> int:
     from datetime import datetime, timezone
     with self._lock:
         cur = self._conn.execute(
-            "INSERT INTO companies (name, domains, ip_ranges, aws_profile, gcp_project, firewall_type, created_at) "
-            "VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO companies (name, domains, ip_ranges, firewall_type, created_at) "
+            "VALUES (?,?,?,?,?)",
             (company.get("name",""), company.get("domains","[]"),
-             company.get("ip_ranges","[]"), company.get("aws_profile",""),
-             company.get("gcp_project",""), company.get("firewall_type",""),
+             company.get("ip_ranges","[]"), company.get("firewall_type",""),
              company.get("created_at", datetime.now(timezone.utc).isoformat())),
         )
         self._conn.commit()
@@ -155,7 +149,7 @@ def insert_company(self, company: dict) -> int:
 def get_companies(self) -> list[dict]:
     with self._lock:
         rows = self._conn.execute(
-            "SELECT id, name, domains, ip_ranges, aws_profile, gcp_project, firewall_type, created_at "
+            "SELECT id, name, domains, ip_ranges, firewall_type, created_at "
             "FROM companies ORDER BY name"
         ).fetchall()
     return [dict(r) for r in rows]
@@ -163,11 +157,10 @@ def get_companies(self) -> list[dict]:
 def update_company(self, company_id: int, company: dict) -> None:
     with self._lock:
         self._conn.execute(
-            "UPDATE companies SET name=?, domains=?, ip_ranges=?, aws_profile=?, gcp_project=?, firewall_type=? "
+            "UPDATE companies SET name=?, domains=?, ip_ranges=?, firewall_type=? "
             "WHERE id=?",
             (company.get("name",""), company.get("domains","[]"),
-             company.get("ip_ranges","[]"), company.get("aws_profile",""),
-             company.get("gcp_project",""), company.get("firewall_type",""),
+             company.get("ip_ranges","[]"), company.get("firewall_type",""),
              company_id),
         )
         self._conn.commit()
@@ -205,7 +198,7 @@ Expected: 336 tests passed (331 + 5 new)
 
 ```bash
 git add db.py tests/test_db_companies.py
-git commit -m "feat: add companies table with CRUD, seeding 9 Fidelitus subsidiaries"
+git commit -m "feat: add companies table with CRUD, seeding 9 the organisation subsidiaries"
 ```
 
 ---
@@ -291,7 +284,7 @@ class ClientOnboardingScreen(QWidget):
         form.setSpacing(10)
 
         self._name_input = QLineEdit()
-        self._name_input.setPlaceholderText("Fidelitus Tech")
+        self._name_input.setPlaceholderText("the organisation Tech")
         form.addRow("Name:", self._name_input)
 
         self._domains_input = QLineEdit()
@@ -301,14 +294,6 @@ class ClientOnboardingScreen(QWidget):
         self._ip_ranges_input = QLineEdit()
         self._ip_ranges_input.setPlaceholderText("192.168.1.0/24, 10.0.0.0/24")
         form.addRow("IP Ranges:", self._ip_ranges_input)
-
-        self._aws_profile_input = QLineEdit()
-        self._aws_profile_input.setPlaceholderText("default")
-        form.addRow("AWS Profile:", self._aws_profile_input)
-
-        self._gcp_project_input = QLineEdit()
-        self._gcp_project_input.setPlaceholderText("my-gcp-project-123")
-        form.addRow("GCP Project:", self._gcp_project_input)
 
         self._firewall_combo = QComboBox()
         self._firewall_combo.addItems(_FIREWALL_OPTS)
@@ -357,8 +342,6 @@ class ClientOnboardingScreen(QWidget):
         except Exception:
             ranges = c.get("ip_ranges", "")
         self._ip_ranges_input.setText(ranges)
-        self._aws_profile_input.setText(c.get("aws_profile", ""))
-        self._gcp_project_input.setText(c.get("gcp_project", ""))
         fw = c.get("firewall_type", "None")
         idx = self._firewall_combo.findText(fw)
         self._firewall_combo.setCurrentIndex(idx if idx >= 0 else 0)
@@ -370,8 +353,6 @@ class ClientOnboardingScreen(QWidget):
         self._name_input.clear()
         self._domains_input.clear()
         self._ip_ranges_input.clear()
-        self._aws_profile_input.clear()
-        self._gcp_project_input.clear()
         self._firewall_combo.setCurrentIndex(0)
         self._save_btn.setEnabled(True)
         self._company_list.clearSelection()
@@ -398,8 +379,6 @@ class ClientOnboardingScreen(QWidget):
             "name": self._name_input.text().strip() or "Unnamed Company",
             "domains": _to_json_array(self._domains_input.text()),
             "ip_ranges": _to_json_array(self._ip_ranges_input.text()),
-            "aws_profile": self._aws_profile_input.text().strip(),
-            "gcp_project": self._gcp_project_input.text().strip(),
             "firewall_type": self._firewall_combo.currentText(),
         }
         if self._selected_id is not None:
@@ -438,10 +417,9 @@ git commit -m "feat: rewrite client_onboarding as 9-company registry with list +
 - Create: `tests/test_company_selector.py`
 - Modify: `screens/scan_view.py`
 - Modify: `screens/osint_page.py`
-- Modify: `screens/cloud_page.py`
 - Modify: `screens/internal_page.py`
 
-Read `screens/scan_view.py`, `screens/osint_page.py`, `screens/cloud_page.py`, `screens/internal_page.py` first.
+Read `screens/scan_view.py`, `screens/osint_page.py`, `screens/internal_page.py` first.
 
 - [ ] **Step 1: Write failing tests for CompanySelector**
 
@@ -611,25 +589,7 @@ def _on_company_selected(self, company: dict) -> None:
         pass
 ```
 
-- [ ] **Step 7: Add CompanySelector to CloudPage**
-
-Read `screens/cloud_page.py`. Add before the AWS group:
-```python
-if self._db:
-    self._company_selector = CompanySelector(db=self._db)
-    self._company_selector.company_selected.connect(self._on_company_selected)
-else:
-    self._company_selector = None
-```
-
-Handler:
-```python
-def _on_company_selected(self, company: dict) -> None:
-    self._aws_profile.setText(company.get("aws_profile", ""))
-    self._gcp_project.setText(company.get("gcp_project", ""))
-```
-
-- [ ] **Step 8: Add CompanySelector to InternalPage**
+- [ ] **Step 7: Add CompanySelector to InternalPage**
 
 Read `screens/internal_page.py`. Add before the subnet input. Handler fills `_subnet_input` with first IP range:
 ```python
@@ -643,18 +603,18 @@ def _on_company_selected(self, company: dict) -> None:
         pass
 ```
 
-- [ ] **Step 9: Run full suite**
+- [ ] **Step 8: Run full suite**
 
 ```bash
 pytest tests/ -p no:randomly -q
 ```
 Expected: 339 passed (336 + 3 selector tests)
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add screens/widgets/company_selector.py tests/test_company_selector.py \
-        screens/scan_view.py screens/osint_page.py screens/cloud_page.py screens/internal_page.py
+        screens/scan_view.py screens/osint_page.py screens/internal_page.py
 git commit -m "feat: add CompanySelector widget and wire into all scan pages"
 ```
 
@@ -690,10 +650,8 @@ def _gc_after_each():
 
 
 COMPANIES = [
-    {"id": 1, "name": "Co A", "domains": '["a.com"]', "ip_ranges": "[]",
-     "aws_profile": "", "gcp_project": "", "firewall_type": ""},
-    {"id": 2, "name": "Co B", "domains": '["b.com"]', "ip_ranges": "[]",
-     "aws_profile": "", "gcp_project": "", "firewall_type": ""},
+    {"id": 1, "name": "Co A", "domains": '["a.com"]', "ip_ranges": "[]", "firewall_type": ""},
+    {"id": 2, "name": "Co B", "domains": '["b.com"]', "ip_ranges": "[]", "firewall_type": ""},
 ]
 
 
@@ -739,8 +697,7 @@ def test_findings_written_to_db():
 
 def test_companies_with_no_domain_skipped():
     db = _make_db()
-    empty_company = {"id": 3, "name": "Empty", "domains": "[]", "ip_ranges": "[]",
-                     "aws_profile": "", "gcp_project": "", "firewall_type": ""}
+    empty_company = {"id": 3, "name": "Empty", "domains": "[]", "ip_ranges": "[]", "firewall_type": ""}
 
     with patch("workers.batch_scan_worker.subfinder.run") as mock_sub:
         worker = BatchScanWorker(companies=[empty_company], db=db)

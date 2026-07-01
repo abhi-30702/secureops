@@ -1,6 +1,6 @@
 # SecureOps — Claude Code Instructions
 
-**Owner:** Abhishek K — Fidelitus Corp internal security team
+**Owner:** Abhishek K — the organisation internal security team
 **Platform:** Kali Linux (native desktop app)
 **Stack:** PyQt6 + pyqtgraph + SQLite + ReportLab + Python subprocess wrappers
 **Status:** Building Phase by Phase — do not skip phases or build ahead
@@ -10,11 +10,11 @@
 ## What this project is
 
 A standalone PyQt6 desktop penetration-testing and security-audit platform for Kali Linux.
-It scans Fidelitus Corp's 9 subsidiary companies — external web, internal LAN, cloud (AWS/GCP),
-OSINT, and incident response — all from one interface. Findings stream into a live report as
-scanning runs. When the scan finishes, the view settles into a professional PDF-exportable report.
+It scans companies you register — external web, internal LAN, OSINT, and incident
+response — all from one interface. Findings stream into a live report as scanning runs.
+When the scan finishes, the view settles into a professional PDF-exportable report.
 
-**Full PRD:** `SecureOps_PRD (1).md` — read it for full context before any session.
+**Project documentation:** `DOCUMENTATIONCLAUDE.md` — read it for full context before any session.
 
 ---
 
@@ -32,8 +32,8 @@ scanning runs. When the scan finishes, the view settles into a professional PDF-
 4. **Findings write to SQLite immediately** — not at the end of a scan. Incremental
    persistence means a crash mid-scan loses nothing.
 
-5. **Never log or print cloud credentials (AWS keys, GCP service accounts).** Store
-   them in encrypted config only. Strip from all scan output.
+5. **Never log or print secrets (e.g. the AI Advisor API key).** Store them in
+   config only. Strip from all scan output.
 
 6. **AI Advisor is opt-in, OFF by default.** Never send data externally without an
    explicit consent confirmation from the user in the UI.
@@ -99,16 +99,12 @@ secureops/                         # repo root
 # Workers to add in upcoming phases:
 # workers/internal_worker.py      Phase 4 — subnet sweep + device fingerprint
 # workers/incident_worker.py      Phase 5 — YARA + persistence checker (promote log_analyzer)
-# workers/cloud_worker.py         Phase 6 — AWS + GCP audit
 # workers/osint_worker.py         Phase 6 — theHarvester
 # screens/internal_page.py        Phase 4
 # screens/incident_page.py        Phase 5
-# screens/cloud_page.py           Phase 6
 # screens/osint_page.py           Phase 6
 # workers/tools/theharvester.py   Phase 6
 # workers/tools/yara_scanner.py   Phase 5
-# workers/tools/aws_auditor.py    Phase 6
-# workers/tools/gcp_auditor.py    Phase 6
 ```
 
 ---
@@ -122,7 +118,7 @@ secureops/                         # repo root
 | **3** | Live visuals: PipelineTracker widget, SeverityRings widget, attack_graph widget, FindingCards widget, ScanView page wiring it all together | ✅ Done |
 | **4** | InternalWorker + nmap for subnet sweep, device fingerprinting, topology map in attack_graph, InternalPage UI | ✅ Done |
 | **5** | IncidentWorker, LogAnalyser (dedicated incident_page.py), YaraScanner, persistence checker, breach timeline | ✅ Done (incident_page, yara_scanner, persistence_checker, breach_timeline; breach timeline in PDF) |
-| **6** | CloudWorker (boto3 AWS + google-cloud GCP), OsintWorker (theHarvester), CloudPage, OsintPage | ✅ Done (cloud/OSINT pages + workers; OSINT section + cloud ISO mapping in PDF) |
+| **6** | OsintWorker (theHarvester), OsintPage | ✅ Done (OSINT page + worker; OSINT section in PDF) |
 | **7** | Multi-target: 9-company registry in client_onboarding.py, sequential/parallel scan orchestration, per-company + consolidated findings | ✅ Done (sequential BatchScanWorker, consolidated PDF + cross-company correlation; parallel mode deferred per PRD §12) |
 | **8** | ReportPage settled view, ReportLab PDF export (light corporate theme), per-company sections | ✅ Done |
 | **9** | SOC dashboard: live metrics, scheduling, delta alerts between scans | ✅ Done (metrics inc. Incidents card, schedule add/delete, DeltaWorker delta alerts) |
@@ -202,14 +198,12 @@ The live schema is defined in `db.py`. The v2.0 PRD target schema (needed for Ph
 **Target tables to add in Phase 4–7:**
 
 ```sql
--- Fidelitus Corp subsidiaries (Phase 7)
+-- Registered companies (Phase 7)
 CREATE TABLE companies (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     domains TEXT,          -- JSON array
     ip_ranges TEXT,        -- JSON array e.g. ["192.168.1.0/24"]
-    aws_profile TEXT,
-    gcp_project TEXT,
     firewall_type TEXT,
     created_at TEXT
 );
@@ -237,7 +231,7 @@ source ~/secureops/venv/bin/activate
 
 # Install / verify
 pip install PyQt6 pyqtgraph reportlab yara-python python-nmap \
-            boto3 google-cloud-storage anthropic --break-system-packages
+            anthropic --break-system-packages
 
 # Run the app
 cd ~/secureops
@@ -254,7 +248,7 @@ python main.py
 - **All findings go to SQLite first** — UI reads from DB via signals, not directly from tool output
 - **No root assumed** — default to non-privileged scan modes; prompt only when required
 - **9 companies in scope** — every feature must handle multi-company data cleanly
-- **Scope: Fidelitus Corp internal use** — no exploitation, strictly detection + reporting
+- **Scope: the organisation internal use** — no exploitation, strictly detection + reporting
 
 ---
 
@@ -269,4 +263,4 @@ python main.py
 
 ---
 
-*SecureOps · Owner: Abhishek K · Fidelitus Corp · Kali Linux*
+*SecureOps · Owner: Abhishek K · the organisation · Kali Linux*

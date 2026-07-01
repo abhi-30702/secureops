@@ -33,15 +33,17 @@ def test_client_screen_has_save_button(qtbot):
     assert screen._save_btn is not None
 
 
-def test_client_screen_loads_seeded_companies(qtbot):
+def test_client_screen_starts_empty(qtbot):
     db = DB(":memory:")
     screen = ClientOnboardingScreen(db=db)
     qtbot.addWidget(screen)
-    assert screen._company_list.count() == 9
+    # No seed data — the operator adds their own companies.
+    assert screen._company_list.count() == 0
 
 
 def test_client_screen_save_updates_company(qtbot):
     db = DB(":memory:")
+    db.insert_company({"name": "Existing Co", "domains": '["existing.com"]'})
     screen = ClientOnboardingScreen(db=db)
     qtbot.addWidget(screen)
     screen.show()

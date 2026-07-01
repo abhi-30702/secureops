@@ -1,6 +1,6 @@
 """Consolidated multi-company reporting (Phase 7).
 
-Builds a group-level report across several Fidelitus subsidiaries:
+Builds a group-level report across several companies:
   * a group executive summary with per-company risk ratings,
   * a cross-company correlation table (weaknesses shared by 2+ subsidiaries),
   * a per-subsidiary section for each company.
@@ -85,7 +85,7 @@ class ConsolidatedPdfGenerator:
     """Render a group-level PDF spanning multiple subsidiaries."""
 
     def __init__(self, companies_data: list[dict], output_path: str = "consolidated.pdf",
-                 group_name: str = "Fidelitus Corp"):
+                 group_name: str = "Consolidated Report"):
         # companies_data: list of {"company", "scan", "hosts", "findings"}
         self._data = companies_data
         self._output_path = output_path

@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Date:** 2026-06-15  
-**Owner:** Abhishek K — Fidelitus Corp  
+**Owner:** Abhishek K — the organisation  
 **Status:** Approved — ready to plan  
 
 ---

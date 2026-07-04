@@ -69,3 +69,45 @@ def test_scan_mode_creates_scan_worker(qtbot, db):
         view._on_start_cancel()
 
     assert isinstance(view._worker, ScanWorker)
+
+
+def test_scan_view_has_ip_mode_button(qtbot, db):
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+    assert view._ip_mode_btn is not None
+
+
+def test_switching_to_ip_mode_hides_browse_and_shows_pipeline(qtbot, db):
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+    view.show()
+    qtbot.mouseClick(view._ip_mode_btn, Qt.MouseButton.LeftButton)
+    assert view._mode == "ip"
+    assert not view._browse_btn.isVisible()
+    assert view._pipeline_panel.isVisible()
+    assert view._start_btn.text() == "▶  Scan IP"
+
+
+def test_ip_mode_with_valid_ip_creates_scan_worker(qtbot, db):
+    from workers.scan_worker import ScanWorker
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+    qtbot.mouseClick(view._ip_mode_btn, Qt.MouseButton.LeftButton)
+    view._target_input.setText("192.168.1.10")
+
+    with patch.object(ScanWorker, "start"):
+        view._on_start_cancel()
+
+    assert isinstance(view._worker, ScanWorker)
+
+
+def test_ip_mode_rejects_invalid_ip(qtbot, db):
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+    qtbot.mouseClick(view._ip_mode_btn, Qt.MouseButton.LeftButton)
+    view._target_input.setText("example.com")
+
+    view._on_start_cancel()
+
+    assert view._worker is None
+    assert "not a valid IP" in view._status_label.text()

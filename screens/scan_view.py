@@ -1,3 +1,4 @@
+import ipaddress
 from datetime import datetime, timezone
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -23,6 +24,7 @@ class ScanViewScreen(QWidget):
         self._mode = "scan"
         self._target_input: QLineEdit | None = None
         self._scan_mode_btn: QPushButton | None = None
+        self._ip_mode_btn: QPushButton | None = None
         self._log_mode_btn: QPushButton | None = None
         self._browse_btn: QPushButton | None = None
         self._start_btn: QPushButton | None = None
@@ -58,6 +60,14 @@ class ScanViewScreen(QWidget):
         self._scan_mode_btn.setFixedWidth(110)
         self._scan_mode_btn.clicked.connect(lambda: self._set_mode("scan"))
 
+        self._ip_mode_btn = QPushButton("Scan IP")
+        self._ip_mode_btn.setCheckable(True)
+        self._ip_mode_btn.setChecked(False)
+        self._ip_mode_btn.setProperty("active", "false")
+        self._ip_mode_btn.setFixedWidth(90)
+        self._ip_mode_btn.setToolTip("Scan a single IP address (host tools only — no subdomain enumeration)")
+        self._ip_mode_btn.clicked.connect(lambda: self._set_mode("ip"))
+
         self._log_mode_btn = QPushButton("Analyse Logs")
         self._log_mode_btn.setCheckable(True)
         self._log_mode_btn.setChecked(False)
@@ -84,6 +94,7 @@ class ScanViewScreen(QWidget):
         self._batch_btn.clicked.connect(self._on_batch_scan)
 
         top_bar.addWidget(self._scan_mode_btn)
+        top_bar.addWidget(self._ip_mode_btn)
         top_bar.addWidget(self._log_mode_btn)
         top_bar.addWidget(self._target_input, stretch=1)
         top_bar.addWidget(self._browse_btn)
@@ -201,22 +212,33 @@ class ScanViewScreen(QWidget):
 
     def _set_mode(self, mode: str):
         self._mode = mode
-        is_scan = mode == "scan"
-        self._scan_mode_btn.setProperty("active", "true" if is_scan else "false")
-        self._log_mode_btn.setProperty("active", "false" if is_scan else "true")
-        self._scan_mode_btn.style().unpolish(self._scan_mode_btn)
-        self._scan_mode_btn.style().polish(self._scan_mode_btn)
-        self._log_mode_btn.style().unpolish(self._log_mode_btn)
-        self._log_mode_btn.style().polish(self._log_mode_btn)
+        is_logs = mode == "logs"
+        runs_pipeline = mode in ("scan", "ip")
+
+        buttons = {
+            "scan": self._scan_mode_btn,
+            "ip":   self._ip_mode_btn,
+            "logs": self._log_mode_btn,
+        }
+        for btn_mode, btn in buttons.items():
+            btn.setChecked(btn_mode == mode)
+            btn.setProperty("active", "true" if btn_mode == mode else "false")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+
+        placeholders = {
+            "scan": "Target domain or IP (e.g. example.com)",
+            "ip":   "Single IP address (e.g. 192.168.1.10)",
+            "logs": "Path to log file (e.g. /var/log/auth.log)",
+        }
+        start_labels = {"scan": "▶  Start Scan", "ip": "▶  Scan IP", "logs": "▶  Analyse"}
+
         self._target_input.setText("")
-        self._target_input.setPlaceholderText(
-            "Target domain or IP (e.g. example.com)" if is_scan
-            else "Path to log file (e.g. /var/log/auth.log)"
-        )
-        self._browse_btn.setVisible(not is_scan)
-        self._pipeline_panel.setVisible(is_scan)
-        self._log_status_label.setVisible(not is_scan)
-        self._start_btn.setText("▶  Start Scan" if is_scan else "▶  Analyse")
+        self._target_input.setPlaceholderText(placeholders[mode])
+        self._browse_btn.setVisible(is_logs)
+        self._pipeline_panel.setVisible(runs_pipeline)
+        self._log_status_label.setVisible(is_logs)
+        self._start_btn.setText(start_labels[mode])
 
     def _on_browse(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -236,10 +258,20 @@ class ScanViewScreen(QWidget):
 
         target = self._target_input.text().strip()
         if not target:
-            self._status_label.setText(
-                "Enter a target first." if self._mode == "scan" else "Select a log file first."
-            )
+            prompts = {
+                "scan": "Enter a target first.",
+                "ip":   "Enter an IP address first.",
+                "logs": "Select a log file first.",
+            }
+            self._status_label.setText(prompts[self._mode])
             return
+
+        if self._mode == "ip":
+            try:
+                ipaddress.ip_address(target)
+            except ValueError:
+                self._status_label.setText(f"'{target}' is not a valid IP address.")
+                return
 
         from models import Scan
 
@@ -261,7 +293,7 @@ class ScanViewScreen(QWidget):
             self._worker.deleteLater()
             self._worker = None
 
-        if self._mode == "scan":
+        if self._mode in ("scan", "ip"):
             from workers.scan_worker import ScanWorker
             self._pipeline_panel.reset()
             self._attack_graph_panel.reset()
@@ -293,6 +325,9 @@ class ScanViewScreen(QWidget):
         self._start_btn.setText("■  Cancel")
         self._worker.start()
 
+    def _start_btn_label(self) -> str:
+        return {"scan": "▶  Start Scan", "ip": "▶  Scan IP", "logs": "▶  Analyse"}[self._mode]
+
     def _log(self, line: str):
         self._terminal_panel.appendPlainText(line)
 
@@ -314,7 +349,7 @@ class ScanViewScreen(QWidget):
     def _on_scan_complete(self, hosts: int, findings: int):
         self._status_label.setText(f"Complete — {hosts} hosts, {findings} findings")
         self._start_btn.setEnabled(True)
-        self._start_btn.setText("▶  Start Scan")
+        self._start_btn.setText(self._start_btn_label())
         if self._worker:
             self._worker.deleteLater()
             self._worker = None
@@ -324,7 +359,7 @@ class ScanViewScreen(QWidget):
     def _on_scan_failed(self, msg: str):
         self._status_label.setText(f"Stopped: {msg}")
         self._start_btn.setEnabled(True)
-        self._start_btn.setText("▶  Start Scan")
+        self._start_btn.setText(self._start_btn_label())
         if self._worker:
             self._worker.deleteLater()
             self._worker = None

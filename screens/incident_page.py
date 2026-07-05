@@ -52,14 +52,14 @@ class IncidentPage(QWidget):
         self._log_input = QLineEdit()
         self._log_input.setPlaceholderText("Log file path (e.g. /var/log/auth.log)")
         browse_log_btn = QPushButton("Browse…")
-        browse_log_btn.setFixedWidth(72)
+        browse_log_btn.setMinimumWidth(84)
         browse_log_btn.clicked.connect(self._on_browse_log)
 
         self._yara_input = QLineEdit()
         self._yara_input.setPlaceholderText("Extra YARA scan path (optional)")
         self._yara_input.setFixedWidth(240)
         browse_yara_btn = QPushButton("Browse…")
-        browse_yara_btn.setFixedWidth(72)
+        browse_yara_btn.setMinimumWidth(84)
         browse_yara_btn.clicked.connect(self._on_browse_yara)
 
         self._start_btn = QPushButton("▶  Start Scan")

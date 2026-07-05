@@ -309,7 +309,7 @@ class ReportScreen(QWidget):
             return
 
         self._run_advisor_btn = QPushButton("Run Advisor")
-        self._run_advisor_btn.setFixedWidth(110)
+        self._run_advisor_btn.setMinimumWidth(110)
         self._run_advisor_btn.clicked.connect(self._on_run_advisor)
         header_row.addWidget(self._run_advisor_btn)
 

@@ -12,6 +12,9 @@ class ThreatFeed(QScrollArea):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._cards: list[QFrame] = []
+        # When set (UTC ISO timestamp), only findings created AFTER this show —
+        # lets the user "clear" the feed until genuinely new activity arrives.
+        self._muted_before: str | None = None
         self._container = QWidget()
         self._layout = QVBoxLayout(self._container)
         self._layout.setContentsMargins(0, 0, 0, 0)
@@ -24,6 +27,8 @@ class ThreatFeed(QScrollArea):
     def refresh(self, db) -> None:
         self.clear()
         findings = db.query_recent_findings(limit=_LIMIT)
+        if self._muted_before is not None:
+            findings = [f for f in findings if f.created_at > self._muted_before]
         for f in findings:
             color = _SEVERITY_COLORS.get(f.severity, TXT3)
             card = QFrame()
@@ -51,6 +56,13 @@ class ThreatFeed(QScrollArea):
             self._layout.removeWidget(card)
             card.deleteLater()
         self._cards.clear()
+
+    def clear_feed(self) -> None:
+        """User-facing clear: hide all current entries and mute anything up to
+        now, so the feed stays empty until new findings are discovered."""
+        from datetime import datetime, timezone
+        self._muted_before = datetime.now(timezone.utc).isoformat()
+        self.clear()
 
     @property
     def card_count(self) -> int:

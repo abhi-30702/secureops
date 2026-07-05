@@ -54,3 +54,31 @@ def test_threat_feed_refresh_replaces_old_cards(qtbot):
     feed.refresh(db)
     feed.refresh(db)
     assert feed.card_count == 3
+
+
+def test_threat_feed_clear_feed_mutes_existing(qtbot):
+    # clear_feed() hides current findings and keeps them hidden on refresh.
+    db = _make_db_with_findings(3)
+    feed = ThreatFeed()
+    qtbot.addWidget(feed)
+    feed.refresh(db)
+    feed.clear_feed()
+    assert feed.card_count == 0
+    feed.refresh(db)
+    assert feed.card_count == 0  # old findings stay muted
+
+
+def test_threat_feed_clear_feed_shows_new_findings(qtbot):
+    # Findings created after a clear still appear.
+    db = _make_db_with_findings(3)
+    feed = ThreatFeed()
+    qtbot.addWidget(feed)
+    feed.refresh(db)
+    feed.clear_feed()
+    from models import Finding
+    db.insert_finding(Finding(id=None, scan_id=1, host_id=None, tool="nuclei",
+                              severity="critical", title="Fresh",
+                              description="", raw_json="{}",
+                              created_at="2099-01-01T00:00:00"))
+    feed.refresh(db)
+    assert feed.card_count == 1

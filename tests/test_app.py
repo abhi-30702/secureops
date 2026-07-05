@@ -14,8 +14,10 @@ def test_create_app_idempotent(qapp):
 
 
 def test_cool_qss_contains_background_color():
-    assert "#F4F6F9" in COOL_QSS
+    # Graphite light base — near-white.
+    assert "#F7F7F9" in COOL_QSS
 
 
-def test_cool_qss_contains_accent_blue():
-    assert "#3D5A80" in COOL_QSS
+def test_cool_qss_contains_accent_violet():
+    # Graphite accent family.
+    assert "#18181B" in COOL_QSS

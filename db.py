@@ -169,6 +169,26 @@ class DB:
             )
             self._conn.commit()
 
+    def query_all_scans(self) -> list[Scan]:
+        """Every scan across all clients, newest first — for the History page."""
+        rows = self._conn.execute(
+            "SELECT * FROM scans ORDER BY started_at DESC, id DESC"
+        ).fetchall()
+        return [Scan(id=r["id"], client_id=r["client_id"], target=r["target"],
+                     status=r["status"], started_at=r["started_at"],
+                     finished_at=r["finished_at"]) for r in rows]
+
+    def finding_counts_by_scan(self) -> dict[int, dict[str, int]]:
+        """{scan_id: {severity: count, ...}} in a single grouped query."""
+        rows = self._conn.execute(
+            "SELECT scan_id, severity, COUNT(*) AS n FROM findings "
+            "GROUP BY scan_id, severity"
+        ).fetchall()
+        out: dict[int, dict[str, int]] = {}
+        for r in rows:
+            out.setdefault(r["scan_id"], {})[r["severity"]] = r["n"]
+        return out
+
     def query_scans_by_client(self, client_id: int | None) -> list[Scan]:
         if client_id is None:
             rows = self._conn.execute("SELECT * FROM scans WHERE client_id IS NULL ORDER BY id").fetchall()

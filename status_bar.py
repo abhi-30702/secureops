@@ -1,6 +1,7 @@
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel
 from tool_checker import is_critical_missing, ready_count, TOOLS
+from screens.widgets.morphism import StatusLED
 
 
 class ToolStatusBar(QWidget):
@@ -23,10 +24,9 @@ class ToolStatusBar(QWidget):
         total = len(TOOLS)
 
         self._label = QLabel(f"Tools: {n_ready}/{total} ready")
-        self._label.setStyleSheet("color: #64748b; font-size: 11px;")
+        self._label.setStyleSheet("color: #71717A; font-size: 11px; background: transparent;")
 
-        self._dot = QLabel("●")
-        self._dot.setStyleSheet(f"color: {self._dot_color()}; font-size: 11px;")
+        self._dot = StatusLED(self._dot_color())
 
         layout.addStretch()
         layout.addWidget(self._label)

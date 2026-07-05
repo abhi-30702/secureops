@@ -111,3 +111,72 @@ def test_ip_mode_rejects_invalid_ip(qtbot, db):
 
     assert view._worker is None
     assert "not a valid IP" in view._status_label.text()
+
+
+def test_starting_scan_shows_running_indicators(qtbot, db):
+    from workers.scan_worker import ScanWorker
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+    view.show()
+    view._target_input.setText("example.com")
+
+    with patch.object(ScanWorker, "start"):
+        view._on_start_cancel()
+
+    assert view._elapsed_timer.isActive()
+    assert view._busy_bar.isVisible()
+    assert view._pulse_dot.isVisible()
+    assert view._timer_label.text() == "⏱  00:00"
+
+
+def test_scan_complete_stops_running_indicators(qtbot, db):
+    from workers.scan_worker import ScanWorker
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+    view.show()
+    view._target_input.setText("example.com")
+
+    with patch.object(ScanWorker, "start"):
+        view._on_start_cancel()
+    view._on_scan_complete(3, 5)
+
+    assert not view._elapsed_timer.isActive()
+    assert not view._busy_bar.isVisible()
+    assert not view._pulse_dot.isVisible()
+
+
+def test_scan_failed_stops_running_indicators(qtbot, db):
+    from workers.scan_worker import ScanWorker
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+    view.show()
+    view._target_input.setText("example.com")
+
+    with patch.object(ScanWorker, "start"):
+        view._on_start_cancel()
+    view._on_scan_failed("boom")
+
+    assert not view._elapsed_timer.isActive()
+    assert not view._busy_bar.isVisible()
+
+
+def test_elapsed_tick_formats_mm_ss(qtbot, db):
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+
+    view._elapsed_secs = 0
+    view._on_elapsed_tick()
+    assert view._timer_label.text() == "⏱  00:01"
+
+    view._elapsed_secs = 74
+    view._on_elapsed_tick()
+    assert view._timer_label.text() == "⏱  01:15"
+
+
+def test_elapsed_tick_formats_hours(qtbot, db):
+    view = ScanViewScreen(db=db)
+    qtbot.addWidget(view)
+
+    view._elapsed_secs = 3661  # tick → 3662 = 1h 1m 2s
+    view._on_elapsed_tick()
+    assert view._timer_label.text() == "⏱  1:01:02"

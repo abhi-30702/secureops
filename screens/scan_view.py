@@ -1,16 +1,17 @@
 import ipaddress
 from datetime import datetime, timezone
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QSplitter, QPlainTextEdit,
-    QFileDialog,
+    QFileDialog, QProgressBar, QGraphicsOpacityEffect,
 )
 from screens.widgets.pipeline_tracker import PipelineTracker
 from screens.widgets.attack_graph import AttackGraph
 from screens.widgets.severity_rings import SeverityRings
 from screens.widgets.finding_cards import FindingCards
 from screens.widgets.company_selector import CompanySelector
+from screens.widgets.morphism import NeuButton, NeuLineEdit, TerminalOutput
 from screens.widgets.theme import TXT, TXT3, CARD
 from screens.widgets import theme as T
 
@@ -39,6 +40,15 @@ class ScanViewScreen(QWidget):
         self._batch_worker = None
         self._scan_id: int | None = None
         self._company_selector: CompanySelector | None = None
+        # ── scan-running indicators ──
+        self._timer_label: QLabel | None = None
+        self._pulse_dot: QLabel | None = None
+        self._busy_bar: QProgressBar | None = None
+        self._elapsed_timer = QTimer(self)
+        self._elapsed_timer.setInterval(1000)
+        self._elapsed_timer.timeout.connect(self._on_elapsed_tick)
+        self._elapsed_secs = 0
+        self._pulse_anim: QPropertyAnimation | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -53,33 +63,30 @@ class ScanViewScreen(QWidget):
 
         top_bar = QHBoxLayout()
 
-        self._scan_mode_btn = QPushButton("Scan Target")
+        self._scan_mode_btn = NeuButton("Scan Target")
         self._scan_mode_btn.setCheckable(True)
         self._scan_mode_btn.setChecked(True)
-        self._scan_mode_btn.setProperty("active", "true")
-        self._scan_mode_btn.setFixedWidth(110)
+        self._scan_mode_btn.setFixedWidth(124)
         self._scan_mode_btn.clicked.connect(lambda: self._set_mode("scan"))
 
-        self._ip_mode_btn = QPushButton("Scan IP")
+        self._ip_mode_btn = NeuButton("Scan IP")
         self._ip_mode_btn.setCheckable(True)
         self._ip_mode_btn.setChecked(False)
-        self._ip_mode_btn.setProperty("active", "false")
-        self._ip_mode_btn.setFixedWidth(90)
+        self._ip_mode_btn.setFixedWidth(104)
         self._ip_mode_btn.setToolTip("Scan a single IP address (host tools only — no subdomain enumeration)")
         self._ip_mode_btn.clicked.connect(lambda: self._set_mode("ip"))
 
-        self._log_mode_btn = QPushButton("Analyse Logs")
+        self._log_mode_btn = NeuButton("Analyse Logs")
         self._log_mode_btn.setCheckable(True)
         self._log_mode_btn.setChecked(False)
-        self._log_mode_btn.setProperty("active", "false")
-        self._log_mode_btn.setFixedWidth(110)
+        self._log_mode_btn.setFixedWidth(124)
         self._log_mode_btn.clicked.connect(lambda: self._set_mode("logs"))
 
-        self._target_input = QLineEdit()
+        self._target_input = NeuLineEdit()
         self._target_input.setPlaceholderText("Target domain or IP (e.g. example.com)")
 
         self._browse_btn = QPushButton("Browse")
-        self._browse_btn.setFixedWidth(72)
+        self._browse_btn.setMinimumWidth(84)
         self._browse_btn.setVisible(False)
         self._browse_btn.clicked.connect(self._on_browse)
 
@@ -102,9 +109,38 @@ class ScanViewScreen(QWidget):
         top_bar.addWidget(self._start_btn)
         layout.addLayout(top_bar)
 
+        status_row = QHBoxLayout()
+        status_row.setSpacing(T.SP_SM)
+
+        self._pulse_dot = QLabel("●")
+        self._pulse_dot.setStyleSheet(f"color: {T.ACCENT}; font-size: 11px;")
+        self._pulse_dot.setVisible(False)
+
         self._status_label = QLabel("Ready")
         self._status_label.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
-        layout.addWidget(self._status_label)
+
+        self._timer_label = QLabel("")
+        self._timer_label.setStyleSheet(
+            f"color: {T.TXT2}; font-size: 12px; font-family: {T.FONT_MONO};"
+        )
+
+        status_row.addWidget(self._pulse_dot)
+        status_row.addWidget(self._status_label)
+        status_row.addStretch(1)
+        status_row.addWidget(self._timer_label)
+        layout.addLayout(status_row)
+
+        self._busy_bar = QProgressBar()
+        self._busy_bar.setRange(0, 0)  # indeterminate — smooth "busy" animation
+        self._busy_bar.setTextVisible(False)
+        self._busy_bar.setFixedHeight(3)
+        self._busy_bar.setVisible(False)
+        self._busy_bar.setStyleSheet(
+            f"QProgressBar {{ background: {T.BG_ALT}; border: none; "
+            f"border-radius: 2px; }} "
+            f"QProgressBar::chunk {{ background: {T.ACCENT}; border-radius: 2px; }}"
+        )
+        layout.addWidget(self._busy_bar)
 
         self._log_status_label = QLabel("")
         self._log_status_label.setStyleSheet(f"color: {TXT3}; font-size: 11px;")
@@ -117,13 +153,11 @@ class ScanViewScreen(QWidget):
         self._severity_panel = SeverityRings()
         self._finding_cards_panel = FindingCards()
 
-        self._terminal_panel = QPlainTextEdit()
-        self._terminal_panel.setReadOnly(True)
-        self._terminal_panel.setStyleSheet(
-            f"background: {T.TERMINAL_BG}; color: {T.TERMINAL_TXT}; "
-            f"font-family: {T.FONT_MONO}; font-size: {T.FS_SMALL}px; "
-            f"border-radius: {T.RADIUS_MD}px;"
-        )
+        # Skeuomorphic console — the library widget owns header, scanlines, mono body.
+        self._terminal = TerminalOutput()
+        self._terminal.set_scanlines(True)
+        self._terminal_panel = self._terminal.output  # QPlainTextEdit (append/clear/tests)
+        self._terminal_container = self._terminal
 
         top_splitter = QSplitter(Qt.Orientation.Horizontal)
         top_splitter.addWidget(self._pipeline_panel)
@@ -144,7 +178,7 @@ class ScanViewScreen(QWidget):
 
         main_splitter = QSplitter(Qt.Orientation.Vertical)
         main_splitter.addWidget(top_mid)
-        main_splitter.addWidget(self._terminal_panel)
+        main_splitter.addWidget(self._terminal_container)
         main_splitter.setSizes([800, 200])
 
         layout.addWidget(main_splitter, stretch=1)
@@ -168,9 +202,11 @@ class ScanViewScreen(QWidget):
         self._batch_worker.batch_complete.connect(self._on_batch_complete)
         self._batch_worker.finished.connect(self._batch_worker.deleteLater)
         self._batch_btn.setEnabled(False)
+        self._start_scan_indicators()
         self._batch_worker.start()
 
     def _on_batch_complete(self, n: int, total: int) -> None:
+        self._stop_scan_indicators()
         self._status_label.setText(
             f"Batch complete — {n} companies, {total} findings"
         )
@@ -222,9 +258,7 @@ class ScanViewScreen(QWidget):
         }
         for btn_mode, btn in buttons.items():
             btn.setChecked(btn_mode == mode)
-            btn.setProperty("active", "true" if btn_mode == mode else "false")
-            btn.style().unpolish(btn)
-            btn.style().polish(btn)
+            btn.update()
 
         placeholders = {
             "scan": "Target domain or IP (e.g. example.com)",
@@ -323,10 +357,57 @@ class ScanViewScreen(QWidget):
         self._worker.scan_failed.connect(self._on_scan_failed)
 
         self._start_btn.setText("■  Cancel")
+        self._start_scan_indicators()
         self._worker.start()
 
     def _start_btn_label(self) -> str:
         return {"scan": "▶  Start Scan", "ip": "▶  Scan IP", "logs": "▶  Analyse"}[self._mode]
+
+    # ── scan-running indicators ──────────────────────────────────────────────
+    def _start_scan_indicators(self) -> None:
+        """Show the live timer, pulsing dot and busy bar while a scan runs."""
+        self._elapsed_secs = 0
+        self._timer_label.setText("⏱  00:00")
+        self._timer_label.setStyleSheet(
+            f"color: {T.ACCENT}; font-size: 12px; font-family: {T.FONT_MONO};"
+        )
+        self._elapsed_timer.start()
+
+        self._busy_bar.setVisible(True)
+
+        self._pulse_dot.setVisible(True)
+        effect = QGraphicsOpacityEffect(self._pulse_dot)
+        self._pulse_dot.setGraphicsEffect(effect)
+        self._pulse_anim = QPropertyAnimation(effect, b"opacity", self)
+        self._pulse_anim.setDuration(900)
+        self._pulse_anim.setKeyValueAt(0.0, 1.0)
+        self._pulse_anim.setKeyValueAt(0.5, 0.25)
+        self._pulse_anim.setKeyValueAt(1.0, 1.0)
+        self._pulse_anim.setLoopCount(-1)
+        self._pulse_anim.start()
+
+    def _stop_scan_indicators(self) -> None:
+        """Freeze the timer at its final value and stop the running animations."""
+        self._elapsed_timer.stop()
+        if self._pulse_anim:
+            self._pulse_anim.stop()
+            self._pulse_anim = None
+        self._pulse_dot.setGraphicsEffect(None)
+        self._pulse_dot.setVisible(False)
+        self._busy_bar.setVisible(False)
+        # keep _timer_label showing the final duration, in neutral colour
+        self._timer_label.setStyleSheet(
+            f"color: {T.TXT2}; font-size: 12px; font-family: {T.FONT_MONO};"
+        )
+
+    def _on_elapsed_tick(self) -> None:
+        self._elapsed_secs += 1
+        m, s = divmod(self._elapsed_secs, 60)
+        if m >= 60:
+            h, m = divmod(m, 60)
+            self._timer_label.setText(f"⏱  {h:d}:{m:02d}:{s:02d}")
+        else:
+            self._timer_label.setText(f"⏱  {m:02d}:{s:02d}")
 
     def _log(self, line: str):
         self._terminal_panel.appendPlainText(line)
@@ -347,6 +428,7 @@ class ScanViewScreen(QWidget):
             self._log_status_label.setText("Enriching with AI Advisor…")
 
     def _on_scan_complete(self, hosts: int, findings: int):
+        self._stop_scan_indicators()
         self._status_label.setText(f"Complete — {hosts} hosts, {findings} findings")
         self._start_btn.setEnabled(True)
         self._start_btn.setText(self._start_btn_label())
@@ -357,6 +439,7 @@ class ScanViewScreen(QWidget):
             self.scan_ready.emit(self._scan_id)
 
     def _on_scan_failed(self, msg: str):
+        self._stop_scan_indicators()
         self._status_label.setText(f"Stopped: {msg}")
         self._start_btn.setEnabled(True)
         self._start_btn.setText(self._start_btn_label())

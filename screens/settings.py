@@ -33,60 +33,66 @@ class SettingsScreen(QWidget):
     def _setup_ui(self):
         from screens.widgets import theme as T
         from screens.widgets.components import PageHeader
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
-        layout.setSpacing(T.SP_LG)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(T.SP_XL, T.SP_XL, T.SP_XL, T.SP_XL)
+        outer.setSpacing(T.SP_LG)
 
-        layout.addWidget(PageHeader(
+        # Header stays pinned; everything else scrolls as one page so no
+        # control ever gets vertically crushed on a short window.
+        outer.addWidget(PageHeader(
             "Settings", "Tool paths, scan schedules, subnets & AI Advisor"
         ))
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        outer.addWidget(scroll, stretch=1)
+
+        body = QWidget()
+        layout = QVBoxLayout(body)
+        layout.setContentsMargins(0, 0, T.SP_SM, 0)  # right pad clears the scrollbar
+        layout.setSpacing(T.SP_MD)
+        scroll.setWidget(body)
 
         section_label = QLabel("TOOL STATUS")
         section_label.setStyleSheet(f"color: {TXT3}; font-size: 10px; letter-spacing: 1px;")
         layout.addWidget(section_label)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-
-        container = QWidget()
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(4)
-
         for tool in TOOLS:
             present = self._tool_results.get(tool, False)
             is_critical = tool in CRITICAL_TOOLS
             row_widget = self._build_tool_row(tool, present, is_critical)
-            container_layout.addWidget(row_widget)
+            layout.addWidget(row_widget)
             self._tool_rows[tool] = {
                 "present": present,
                 "is_critical": is_critical,
                 "widget": row_widget,
             }
 
-        container_layout.addStretch()
-        scroll.setWidget(container)
-        layout.addWidget(scroll, stretch=1)
-
         save_btn = QPushButton("Save Paths")
         save_btn.setEnabled(False)
         save_btn.setToolTip("Path overrides wired in Phase 2")
-        layout.addWidget(save_btn)
+        save_paths_row = QHBoxLayout()
+        save_paths_row.addWidget(save_btn)
+        save_paths_row.addStretch()
+        layout.addLayout(save_paths_row)
 
         sched_label = QLabel("SCHEDULED SCANS")
         sched_label.setStyleSheet(f"color: {TXT3}; font-size: 10px; letter-spacing: 1px;")
         layout.addWidget(sched_label)
 
         sched_input_row = QHBoxLayout()
+        sched_input_row.setSpacing(T.SP_SM)
         self._schedule_target = QLineEdit()
         self._schedule_target.setPlaceholderText("Target domain (e.g. example.com)")
         self._schedule_interval = QComboBox()
         for label in ("Every 1h", "Every 4h", "Every 24h"):
             self._schedule_interval.addItem(label)
         self._schedule_interval.setCurrentIndex(2)
+        self._schedule_interval.setMinimumWidth(120)
         self._add_schedule_btn = QPushButton("+ Add")
-        self._add_schedule_btn.setFixedWidth(70)
+        self._add_schedule_btn.setMinimumWidth(72)
         self._add_schedule_btn.clicked.connect(self._on_add_schedule)
         sched_input_row.addWidget(self._schedule_target, stretch=1)
         sched_input_row.addWidget(self._schedule_interval)
@@ -102,6 +108,7 @@ class SettingsScreen(QWidget):
         self._refresh_schedules()
         self._build_subnet_section(layout)
         self._build_advisor_section(layout)
+        layout.addStretch()
 
     def _on_add_schedule(self):
         if not self._db:
@@ -145,7 +152,9 @@ class SettingsScreen(QWidget):
             label.setStyleSheet(f"color: {TXT2}; font-size: 11px;")
             row_layout.addWidget(label, stretch=1)
             del_btn = QPushButton("✕")
-            del_btn.setFixedWidth(24)
+            del_btn.setObjectName("danger")
+            del_btn.setStyleSheet("padding: 2px 8px;")  # compact icon button
+            del_btn.setFixedSize(28, 28)
             del_btn.setToolTip("Remove this schedule")
             del_btn.clicked.connect(lambda _=False, sid=sched.id: self._on_delete_schedule(sid))
             row_layout.addWidget(del_btn)

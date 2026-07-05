@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
 )
 from tool_checker import is_critical_missing
 from screens.widgets.threat_feed import ThreatFeed
@@ -113,7 +113,18 @@ class DashboardScreen(QWidget):
             sched_card.add(ph)
         middle_row.addWidget(sched_card, stretch=1)
 
-        feed_card = Card("Threat Feed")
+        feed_card = Card()
+        feed_header = QHBoxLayout()
+        feed_header.setContentsMargins(0, 0, 0, 0)
+        feed_header.addWidget(SectionLabel("Threat Feed"))
+        feed_header.addStretch()
+        clear_btn = QPushButton("Clear")
+        clear_btn.setObjectName("ghost")
+        clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        clear_btn.setToolTip("Clear the threat feed until new findings arrive")
+        clear_btn.clicked.connect(self._clear_threat_feed)
+        feed_header.addWidget(clear_btn)
+        feed_card.add_layout(feed_header)
         self._threat_feed = ThreatFeed()
         feed_card.add(self._threat_feed, stretch=1)
         middle_row.addWidget(feed_card, stretch=1)
@@ -131,6 +142,10 @@ class DashboardScreen(QWidget):
             self._timer.timeout.connect(self.refresh)
             self._timer.start(30_000)
             self.refresh()
+
+    def _clear_threat_feed(self) -> None:
+        if self._threat_feed:
+            self._threat_feed.clear_feed()
 
     def refresh(self) -> None:
         if not self._db:

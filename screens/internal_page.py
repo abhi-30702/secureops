@@ -64,7 +64,7 @@ class InternalPage(QWidget):
         self._subnet_input.returnPressed.connect(self._on_add_chip)
 
         self._add_btn = QPushButton("+ Add")
-        self._add_btn.setFixedWidth(64)
+        self._add_btn.setMinimumWidth(64)
         self._add_btn.clicked.connect(self._on_add_chip)
 
         self._start_btn = QPushButton("▶  Start Sweep")

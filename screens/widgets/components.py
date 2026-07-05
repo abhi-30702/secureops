@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QColor
 
 from screens.widgets import theme as T
+from screens.widgets.morphism import ClayStatTile, apply_elevation
 
 
 class PageHeader(QWidget):
@@ -120,30 +121,12 @@ def DangerButton(text: str, tooltip: str = "") -> QPushButton:
     return btn
 
 
-class StatCard(QFrame):
-    """A compact metric tile: large value over an uppercase caption."""
+class StatCard(ClayStatTile):
+    """A compact metric tile — claymorphism (key data callout).
 
-    def __init__(self, title: str, accent: str = T.ACCENT, parent=None):
-        super().__init__(parent)
-        self.setObjectName("card")
-        self.title = title
-        self.setMinimumHeight(88)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(T.SP_LG, T.SP_MD, T.SP_LG, T.SP_MD)
-        layout.setSpacing(2)
-
-        self._value_label = QLabel("0")
-        self._value_label.setStyleSheet(
-            f"color: {accent}; font-size: 30px; font-weight: bold;"
-        )
-        caption = QLabel(title.upper())
-        caption.setStyleSheet(T.overline(T.TXT3, T.FS_TINY))
-
-        layout.addWidget(self._value_label)
-        layout.addWidget(caption)
-
-    def set_value(self, n) -> None:
-        self._value_label.setText(str(n))
+    Kept as a named subclass for back-compat (MetricCard, tests, imports).
+    """
+    pass
 
 
 class Badge(QLabel):
@@ -152,7 +135,7 @@ class Badge(QLabel):
     def __init__(self, text: str, color: str = T.ACCENT, parent=None):
         super().__init__(text, parent)
         self.setStyleSheet(
-            f"background: {color}; color: {T.CARD}; border-radius: {T.RADIUS_PILL}px; "
+            f"background: {color}; color: #FFFFFF; border-radius: {T.RADIUS_PILL}px; "
             f"padding: 2px 10px; font-size: {T.FS_TINY}px; font-weight: bold;"
         )
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)

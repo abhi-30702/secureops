@@ -1,6 +1,7 @@
 # app.py
 import sys
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QPalette, QColor
 
 from screens.widgets import theme as T
 
@@ -13,7 +14,6 @@ QMainWindow, QDialog {
 }
 
 QWidget {
-    background-color: @BG@;
     color: @TXT@;
     font-family: @FONT_SANS@;
     font-size: @FS_BODY@px;
@@ -30,8 +30,8 @@ QToolTip {
 
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
 QWidget#sidebar {
-    background-color: @CARD@;
-    border-right: 1px solid @BORDER@;
+    background-color: @GLASS_FILL_STRONG@;
+    border-right: 1px solid @GLASS_HAIRLINE@;
 }
 
 QPushButton#nav-btn {
@@ -58,14 +58,14 @@ QPushButton#nav-btn[active="true"] {
 
 /* ── Panels / cards ──────────────────────────────────────────────────── */
 QFrame#panel, QFrame#card {
-    border: 1px solid @BORDER@;
-    border-radius: @RADIUS_MD@px;
-    background-color: @CARD@;
+    border: 1px solid @GLASS_HAIRLINE@;
+    border-radius: @RADIUS_LG@px;
+    background-color: @GLASS_FILL@;
 }
 
 QWidget#status-bar-widget {
-    background-color: @CARD@;
-    border-top: 1px solid @BORDER@;
+    background-color: @GLASS_FILL_STRONG@;
+    border-top: 1px solid @GLASS_HAIRLINE@;
 }
 
 /* ── Inputs ──────────────────────────────────────────────────────────── */
@@ -75,6 +75,7 @@ QLineEdit, QComboBox, QPlainTextEdit, QTextEdit, QSpinBox {
     border-radius: @RADIUS_SM@px;
     color: @TXT@;
     padding: 7px 10px;
+    min-height: 20px;
     selection-background-color: @ACCENT@;
     selection-color: @CARD@;
 }
@@ -110,6 +111,7 @@ QPushButton {
     border-radius: @RADIUS_SM@px;
     color: @ACCENT@;
     padding: 8px 16px;
+    min-height: 18px;
     font-weight: 600;
 }
 
@@ -165,6 +167,21 @@ QPushButton#danger {
 QPushButton#danger:hover {
     background-color: @CRITICAL@;
     color: @CARD@;
+}
+
+/* Ghost — compact, borderless action for card headers */
+QPushButton#ghost {
+    background-color: transparent;
+    border: none;
+    color: @TXT3@;
+    padding: 2px 8px;
+    font-size: @FS_SMALL@px;
+    font-weight: 600;
+}
+
+QPushButton#ghost:hover {
+    color: @ACCENT@;
+    background-color: @HOVER@;
 }
 
 QCheckBox {
@@ -234,6 +251,12 @@ QListWidget::item:hover {
 QListWidget::item:selected {
     background-color: @ACCENT_SOFT@;
     color: @ACCENT@;
+}
+
+/* ── Scroll areas ────────────────────────────────────────────────────── */
+QScrollArea {
+    background: transparent;
+    border: none;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────────────── */
@@ -319,9 +342,14 @@ def _build_qss() -> str:
         "TXT": T.TXT, "TXT2": T.TXT2, "TXT3": T.TXT3, "BORDER": T.BORDER,
         "BORDER_STRONG": T.BORDER_STRONG, "FOCUS": T.FOCUS,
         "CRITICAL": T.CRITICAL, "SUCCESS": T.SUCCESS,
+        "WARM": T.WARM, "ACCENT_GLOW": T.ACCENT_GLOW,
+        "GLASS_FILL": T.GLASS_FILL, "GLASS_FILL_STRONG": T.GLASS_FILL_STRONG,
+        "GLASS_HAIRLINE": T.GLASS_HAIRLINE,
+        "TERMINAL_BG": T.TERMINAL_BG, "TERMINAL_TXT": T.TERMINAL_TXT,
         "FONT_SANS": T.FONT_SANS, "FONT_MONO": T.FONT_MONO,
         "FS_BODY": str(T.FS_BODY), "FS_SMALL": str(T.FS_SMALL),
         "RADIUS_SM": str(T.RADIUS_SM), "RADIUS_MD": str(T.RADIUS_MD),
+        "RADIUS_LG": str(T.RADIUS_LG),
     }
     qss = _QSS_TEMPLATE
     for key, val in tokens.items():
@@ -333,6 +361,33 @@ def _build_qss() -> str:
 COOL_QSS = _build_qss()
 
 
+def build_palette() -> QPalette:
+    """A light 'Graphite' palette.
+
+    The host system (Kali) ships a dark Qt palette; our QSS only skins specific
+    widgets, so anything relying on the default palette (scroll-area viewports,
+    plain container widgets) paints a dark base underneath our light UI. Setting
+    a light palette application-wide fixes that at the root — widgets that draw
+    their own colour (dark terminal, tables) override it via QSS regardless.
+    """
+    pal = QPalette()
+    C = QColor
+    pal.setColor(QPalette.ColorRole.Window, C(T.BG))
+    pal.setColor(QPalette.ColorRole.WindowText, C(T.TXT))
+    pal.setColor(QPalette.ColorRole.Base, C(T.CARD))
+    pal.setColor(QPalette.ColorRole.AlternateBase, C(T.BG_ALT))
+    pal.setColor(QPalette.ColorRole.Text, C(T.TXT))
+    pal.setColor(QPalette.ColorRole.Button, C(T.CARD))
+    pal.setColor(QPalette.ColorRole.ButtonText, C(T.TXT))
+    pal.setColor(QPalette.ColorRole.ToolTipBase, C(T.TXT))
+    pal.setColor(QPalette.ColorRole.ToolTipText, C(T.CARD))
+    pal.setColor(QPalette.ColorRole.PlaceholderText, C(T.TXT3))
+    pal.setColor(QPalette.ColorRole.Highlight, C(T.ACCENT))
+    pal.setColor(QPalette.ColorRole.HighlightedText, C(T.CARD))
+    pal.setColor(QPalette.ColorRole.Link, C(T.ACCENT))
+    return pal
+
+
 def create_app(argv=None) -> QApplication:
     existing = QApplication.instance()
     if existing:
@@ -340,5 +395,6 @@ def create_app(argv=None) -> QApplication:
     app = QApplication(argv or sys.argv)
     app.setApplicationName("SecureOps")
     app.setApplicationVersion("1.2.0")
+    app.setPalette(build_palette())
     app.setStyleSheet(COOL_QSS)
     return app

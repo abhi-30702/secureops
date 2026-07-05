@@ -65,7 +65,8 @@ class LogAnalyzerWorker(QThread):
             if "*" in r.formats or fmt in r.formats or fmt == "unknown"
         ]
 
-        count_rules = {"ssh_brute_force", "http_scan_rate", "repeated_block", "port_scan"}
+        count_rules = {"ssh_brute_force", "http_scan_rate", "repeated_block", "port_scan",
+                       "windows_failed_logon", "windows_kerberos_preauth_fail"}
         count_hits: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
         match_hits: dict[str, set[str]] = defaultdict(set)
 
@@ -87,6 +88,8 @@ class LogAnalyzerWorker(QThread):
             "http_scan_rate":  20,
             "repeated_block":  10,
             "port_scan":       1,
+            "windows_failed_logon":         5,
+            "windows_kerberos_preauth_fail": 5,
         }
 
         rule_by_name = {r.name: r for r in applicable}

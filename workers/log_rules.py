@@ -19,8 +19,11 @@ def detect_format(lines: list[str]) -> str:
         "apache":   0,
         "firewall": 0,
         "syslog":   0,
+        "windows":  0,
     }
 
+    if re.search(r"Microsoft-Windows-Security-Auditing|\bEventID=\d+", sample):
+        scores["windows"] += 4
     if re.search(r"\bsshd\b|\bsudo\b|\bPAM\b|\buseradd\b|\bpam_unix\b", sample):
         scores["auth"] += 3
     if re.search(r'"(GET|POST|PUT|DELETE|HEAD)\s+\S+\s+HTTP/\d', sample):
@@ -119,5 +122,45 @@ RULES: list[LogRule] = [
         severity="MEDIUM",
         description="Kernel error or panic detected",
         formats=["syslog", "unknown"],
+    ),
+    # ── Windows Security event log (EventID=NNNN) ────────────────────────────
+    LogRule(
+        name="windows_failed_logon",
+        pattern=re.compile(
+            r"EventID=4625\b.*Source Network Address: (\d{1,3}(?:\.\d{1,3}){3})"
+        ),
+        severity="HIGH",
+        description="Windows failed logons (Event 4625) from same source — possible brute force",
+        formats=["windows", "unknown"],
+    ),
+    LogRule(
+        name="windows_kerberos_preauth_fail",
+        pattern=re.compile(
+            r"EventID=4771\b.*Client Address: (\d{1,3}(?:\.\d{1,3}){3})"
+        ),
+        severity="MEDIUM",
+        description="Kerberos pre-authentication failures (Event 4771) from same client — password guessing",
+        formats=["windows", "unknown"],
+    ),
+    LogRule(
+        name="windows_account_created",
+        pattern=re.compile(r"EventID=4720\b"),
+        severity="HIGH",
+        description="Windows user account created (Event 4720)",
+        formats=["windows", "unknown"],
+    ),
+    LogRule(
+        name="windows_admin_group_add",
+        pattern=re.compile(r"EventID=(?:4732|4728|4756)\b"),
+        severity="HIGH",
+        description="Member added to a privileged (admin) group (Event 4732/4728/4756)",
+        formats=["windows", "unknown"],
+    ),
+    LogRule(
+        name="windows_rdp_logon",
+        pattern=re.compile(r"EventID=4624\b.*Logon Type: 10\b"),
+        severity="INFO",
+        description="Windows remote interactive (RDP) logon (Event 4624, Logon Type 10)",
+        formats=["windows", "unknown"],
     ),
 ]

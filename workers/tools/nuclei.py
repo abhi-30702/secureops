@@ -12,7 +12,7 @@ def run(targets: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Fi
     tmpfile = _write_tmpfile(targets)
     findings = []
     try:
-        for line in runner.run(["nuclei", "-l", tmpfile, "-json", "-silent"]):
+        for line in runner.run(["nuclei", "-l", tmpfile, "-jsonl", "-silent"]):
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:

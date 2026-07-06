@@ -12,7 +12,7 @@ def run(urls: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Host]
     tmpfile = _write_tmpfile(urls)
     hosts = []
     try:
-        for line in runner.run(["katana", "-list", tmpfile, "-json", "-silent"]):
+        for line in runner.run(["katana", "-list", tmpfile, "-jsonl", "-silent"]):
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:

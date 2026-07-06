@@ -5,6 +5,9 @@ from models import Host
 from db import DB
 from workers.base_tool import ToolRunner, _write_tmpfile
 
+# Probing many host:port pairs can exceed the 300s default on large scans.
+_TIMEOUT = 600  # 10 min
+
 
 def run(targets: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Host]:
     if not targets:
@@ -12,7 +15,7 @@ def run(targets: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Ho
     tmpfile = _write_tmpfile(targets)
     hosts = []
     try:
-        for line in runner.run(["httpx", "-l", tmpfile, "-json", "-silent"]):
+        for line in runner.run(["httpx", "-l", tmpfile, "-json", "-silent"], timeout=_TIMEOUT):
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:

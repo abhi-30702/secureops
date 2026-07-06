@@ -5,6 +5,9 @@ from models import Host
 from db import DB
 from workers.base_tool import ToolRunner, _write_tmpfile
 
+# Crawling many URLs can outrun the 300s default; give the crawler more room.
+_TIMEOUT = 600  # 10 min
+
 
 def run(urls: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Host]:
     if not urls:
@@ -12,7 +15,7 @@ def run(urls: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Host]
     tmpfile = _write_tmpfile(urls)
     hosts = []
     try:
-        for line in runner.run(["katana", "-list", tmpfile, "-jsonl", "-silent"]):
+        for line in runner.run(["katana", "-list", tmpfile, "-jsonl", "-silent"], timeout=_TIMEOUT):
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:

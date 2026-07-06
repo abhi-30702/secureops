@@ -5,6 +5,11 @@ from models import Finding
 from db import DB
 from workers.base_tool import ToolRunner, _write_tmpfile
 
+# nuclei runs last and scans every target against the full ~13k-template set, so
+# the 300s default is far too short — it gets killed mid-scan and returns almost
+# nothing. Give it a generous ceiling for a thorough vuln pass.
+_TIMEOUT = 1800  # 30 min
+
 
 def run(targets: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Finding]:
     if not targets:
@@ -12,7 +17,7 @@ def run(targets: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Fi
     tmpfile = _write_tmpfile(targets)
     findings = []
     try:
-        for line in runner.run(["nuclei", "-l", tmpfile, "-jsonl", "-silent"]):
+        for line in runner.run(["nuclei", "-l", tmpfile, "-jsonl", "-silent"], timeout=_TIMEOUT):
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:

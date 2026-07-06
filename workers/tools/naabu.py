@@ -5,6 +5,9 @@ from models import Host
 from db import DB
 from workers.base_tool import ToolRunner, _write_tmpfile
 
+# Port-scanning many hosts can outrun the 300s default on larger address sets.
+_TIMEOUT = 600  # 10 min
+
 
 def run(ips: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Host]:
     if not ips:
@@ -12,7 +15,7 @@ def run(ips: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Host]:
     tmpfile = _write_tmpfile(ips)
     hosts = []
     try:
-        for line in runner.run(["naabu", "-l", tmpfile, "-json", "-silent"]):
+        for line in runner.run(["naabu", "-l", tmpfile, "-json", "-silent"], timeout=_TIMEOUT):
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:

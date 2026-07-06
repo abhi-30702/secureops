@@ -6,6 +6,10 @@ from models import Finding
 from db import DB
 from workers.base_tool import ToolRunner
 
+# nikto is thorough and slow; this is a per-host ceiling (the wrapper scans each
+# host in its own run_buffered call).
+_TIMEOUT = 600  # 10 min per host
+
 
 def run(http_hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Finding]:
     findings = []
@@ -18,7 +22,7 @@ def _scan_host(host: str, runner: ToolRunner, db: DB, scan_id: int) -> list[Find
     fd, tmpfile = tempfile.mkstemp(suffix=".json", prefix="secureops_nikto_")
     os.close(fd)
     try:
-        runner.run_buffered(["nikto", "-h", host, "-Format", "json", "-output", tmpfile, "-nointeractive"])
+        runner.run_buffered(["nikto", "-h", host, "-Format", "json", "-output", tmpfile, "-nointeractive"], timeout=_TIMEOUT)
         if os.path.getsize(tmpfile) > 0:
             return _parse_json_file(tmpfile, db, scan_id)
         return []

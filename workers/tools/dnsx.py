@@ -5,6 +5,9 @@ from models import Host
 from db import DB
 from workers.base_tool import ToolRunner, _write_tmpfile
 
+# Resolving thousands of subdomains can run past the 300s default on big orgs.
+_TIMEOUT = 600  # 10 min
+
 
 def run(subdomains: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Host]:
     if not subdomains:
@@ -12,7 +15,7 @@ def run(subdomains: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list
     tmpfile = _write_tmpfile(subdomains)
     hosts = []
     try:
-        for line in runner.run(["dnsx", "-l", tmpfile, "-json", "-silent"]):
+        for line in runner.run(["dnsx", "-l", tmpfile, "-json", "-silent"], timeout=_TIMEOUT):
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:

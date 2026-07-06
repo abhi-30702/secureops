@@ -18,6 +18,10 @@ _SEVERITY_MAP = {
     "DEBUG": "info",
 }
 
+# testssl.sh probes a long battery of TLS checks and regularly runs 2-3 min per
+# host — well past the 300s default once a host is slow. Per-host ceiling.
+_TIMEOUT = 600  # 10 min per host
+
 
 def run(https_hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Finding]:
     findings = []
@@ -30,7 +34,7 @@ def _scan_host(host: str, runner: ToolRunner, db: DB, scan_id: int) -> list[Find
     fd, tmpfile = tempfile.mkstemp(suffix=".json", prefix="secureops_testssl_")
     os.close(fd)
     try:
-        runner.run_buffered(["testssl.sh", "--jsonfile", tmpfile, "--quiet", "--color", "0", host])
+        runner.run_buffered(["testssl.sh", "--jsonfile", tmpfile, "--quiet", "--color", "0", host], timeout=_TIMEOUT)
         if not os.path.exists(tmpfile) or os.path.getsize(tmpfile) == 0:
             return []
         return _parse_json_file(tmpfile, db, scan_id)

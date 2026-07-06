@@ -5,6 +5,10 @@ from models import Finding
 from db import DB
 from workers.base_tool import ToolRunner, ToolError, _write_tmpfile
 
+# -sV service/version detection across many hosts is slow; the 300s default cuts
+# scans short on larger subnets. Give nmap a wider ceiling.
+_TIMEOUT = 1200  # 20 min
+
 
 def run(hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Finding]:
     if not hosts:
@@ -12,7 +16,7 @@ def run(hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Find
     tmpfile = _write_tmpfile(hosts)
     findings = []
     try:
-        xml_output = runner.run_buffered(["nmap", "-iL", tmpfile, "-oX", "-", "-sV"])
+        xml_output = runner.run_buffered(["nmap", "-iL", tmpfile, "-oX", "-", "-sV"], timeout=_TIMEOUT)
         if not xml_output.strip():
             return findings
         root = ET.fromstring(xml_output)

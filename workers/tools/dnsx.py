@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone
 from models import Host
 from db import DB
-from workers.base_tool import ToolRunner, _write_tmpfile
+from workers.base_tool import ToolRunner, ToolError, _write_tmpfile
 
 # Resolving thousands of subdomains can run past the 300s default on big orgs.
 _TIMEOUT = 600  # 10 min
@@ -36,6 +36,11 @@ def run(subdomains: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list
             )
             host.id = db.insert_host(host)
             hosts.append(host)
+    except ToolError:
+        # Keep partial results on a timeout; re-raise a true zero-result failure
+        # so it still surfaces instead of silently reporting success.
+        if not hosts:
+            raise
     finally:
         os.unlink(tmpfile)
     return hosts

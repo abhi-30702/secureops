@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone
 from models import Host
 from db import DB
-from workers.base_tool import ToolRunner, _write_tmpfile
+from workers.base_tool import ToolRunner, ToolError, _write_tmpfile
 
 # Crawling many URLs can outrun the 300s default; give the crawler more room.
 _TIMEOUT = 600  # 10 min
@@ -37,6 +37,12 @@ def run(urls: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Host]
             )
             host.id = db.insert_host(host)
             hosts.append(host)
+    except ToolError:
+        # Crawling routinely outlives the timeout — keep the endpoints already
+        # streamed to the DB instead of reporting the whole crawl as failed.
+        # Re-raise only if nothing was crawled, so a real failure still surfaces.
+        if not hosts:
+            raise
     finally:
         os.unlink(tmpfile)
     return hosts

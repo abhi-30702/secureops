@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone
 from models import Host
 from db import DB
-from workers.base_tool import ToolRunner, _write_tmpfile
+from workers.base_tool import ToolRunner, ToolError, _write_tmpfile
 
 # Probing many host:port pairs can exceed the 300s default on large scans.
 _TIMEOUT = 600  # 10 min
@@ -34,6 +34,11 @@ def run(targets: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Ho
             )
             host.id = db.insert_host(host)
             hosts.append(host)
+    except ToolError:
+        # Keep partial results on a timeout; re-raise a true zero-result failure
+        # so it still surfaces instead of silently reporting success.
+        if not hosts:
+            raise
     finally:
         os.unlink(tmpfile)
     return hosts

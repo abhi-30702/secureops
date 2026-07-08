@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone
 from models import Finding
 from db import DB
-from workers.base_tool import ToolRunner, _write_tmpfile
+from workers.base_tool import ToolRunner, ToolError, _write_tmpfile
 
 # nuclei runs last and scans every target against the full ~13k-template set, so
 # the 300s default is far too short — it gets killed mid-scan and returns almost
@@ -36,6 +36,12 @@ def run(targets: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Fi
             )
             finding.id = db.insert_finding(finding)
             findings.append(finding)
+    except ToolError:
+        # A multi-host template run can hit the timeout mid-scan — keep the
+        # findings already written to the DB rather than discarding them. Re-raise
+        # only if none were found, so a genuine failure still surfaces.
+        if not findings:
+            raise
     finally:
         os.unlink(tmpfile)
     return findings

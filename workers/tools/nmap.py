@@ -9,6 +9,13 @@ from workers.base_tool import ToolRunner, ToolError, _write_tmpfile
 # scans short on larger subnets. Give nmap a wider ceiling.
 _TIMEOUT = 1200  # 20 min
 
+# Per-host cap so nmap SELF-LIMITS and returns partial results, instead of being
+# SIGKILL'd by the ToolRunner watchdog (which loses all its work — nmap writes XML
+# only at the end). Verified: plain `-sV -sC` ran >958s and never finished on 4
+# ports; with `-T4 --host-timeout 300s` it finished in ~115s with full service
+# detection.
+_HOST_TIMEOUT = "300s"
+
 
 def run(hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Finding]:
     if not hosts:
@@ -16,7 +23,10 @@ def run(hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Find
     tmpfile = _write_tmpfile(hosts)
     findings = []
     try:
-        xml_output = runner.run_buffered(["nmap", "-iL", tmpfile, "-oX", "-", "-sV"], timeout=_TIMEOUT)
+        xml_output = runner.run_buffered(
+            ["nmap", "-iL", tmpfile, "-oX", "-", "-sV", "-T4", "--host-timeout", _HOST_TIMEOUT],
+            timeout=_TIMEOUT,
+        )
         if not xml_output.strip():
             return findings
         root = ET.fromstring(xml_output)

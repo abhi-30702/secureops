@@ -10,6 +10,12 @@ from workers.base_tool import ToolRunner
 # host in its own run_buffered call).
 _TIMEOUT = 600  # 10 min per host
 
+# nikto writes its report only at the END of its ~7000-check run, so a mid-run
+# SIGKILL from the ToolRunner watchdog loses everything → silent 0 findings. Pass
+# -maxtime just under _TIMEOUT so nikto stops itself and writes partial results
+# before the watchdog fires.
+_MAXTIME = "570s"
+
 
 def run(http_hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Finding]:
     findings = []
@@ -19,18 +25,27 @@ def run(http_hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list
 
 
 def _scan_host(host: str, runner: ToolRunner, db: DB, scan_id: int) -> list[Finding]:
-    fd, tmpfile = tempfile.mkstemp(suffix=".json", prefix="secureops_nikto_")
+    fd, tmpfile = tempfile.mkstemp(prefix="secureops_nikto_")
     os.close(fd)
+    # nikto 2.6.0 APPENDS the -Format extension to -output, so `-output X -Format
+    # json` actually writes to `X.json`, not `X`. Check the appended path first,
+    # then the bare path, so we read whichever this nikto build produced.
+    candidates = [tmpfile + ".json", tmpfile]
     try:
-        runner.run_buffered(["nikto", "-h", host, "-Format", "json", "-output", tmpfile, "-nointeractive"], timeout=_TIMEOUT)
-        if os.path.getsize(tmpfile) > 0:
-            return _parse_json_file(tmpfile, db, scan_id)
+        runner.run_buffered(
+            ["nikto", "-h", host, "-Format", "json", "-output", tmpfile, "-nointeractive", "-maxtime", _MAXTIME],
+            timeout=_TIMEOUT,
+        )
+        for path in candidates:
+            if os.path.exists(path) and os.path.getsize(path) > 0:
+                return _parse_json_file(path, db, scan_id)
         return []
     except Exception:
         return []
     finally:
-        if os.path.exists(tmpfile):
-            os.unlink(tmpfile)
+        for path in candidates:
+            if os.path.exists(path):
+                os.unlink(path)
 
 
 def _parse_json_file(path: str, db: DB, scan_id: int) -> list[Finding]:
@@ -38,7 +53,20 @@ def _parse_json_file(path: str, db: DB, scan_id: int) -> list[Finding]:
     try:
         with open(path) as f:
             data = json.load(f)
-        for vuln in data.get("vulnerabilities") or []:
+    except (json.JSONDecodeError, OSError):
+        return findings
+    # nikto 2.6.0 emits a LIST of per-host result objects, each carrying its own
+    # "vulnerabilities" array. Older builds emitted a single dict — handle both.
+    if isinstance(data, dict):
+        host_objs = [data]
+    elif isinstance(data, list):
+        host_objs = data
+    else:
+        return findings
+    for host_obj in host_objs:
+        if not isinstance(host_obj, dict):
+            continue
+        for vuln in host_obj.get("vulnerabilities") or []:
             msg = vuln.get("msg") or vuln.get("message") or "Unknown issue"
             finding = Finding(
                 id=None,
@@ -53,6 +81,4 @@ def _parse_json_file(path: str, db: DB, scan_id: int) -> list[Finding]:
             )
             finding.id = db.insert_finding(finding)
             findings.append(finding)
-    except (json.JSONDecodeError, KeyError):
-        pass
     return findings

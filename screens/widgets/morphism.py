@@ -501,10 +501,16 @@ class _WinButton(QPushButton):
         self._hover = hover
         self.setFixedSize(30, 26)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        # NOTE: reset padding/min-width explicitly. The global QSS `QPushButton`
+        # rule sets `padding: 8px 16px`, which this widget's stylesheet would
+        # otherwise inherit — with a fixed 30px width that squeezes the glyph out
+        # of view, leaving an invisible (transparent) button.
         self.setStyleSheet(
             f"QPushButton {{ background: transparent; border: none; color: {T.TXT3};"
-            f" font-size: 13px; border-radius: {T.RADIUS_SM}px; }}"
+            f" font-size: 13px; font-weight: bold; padding: 0px; margin: 0px;"
+            f" min-width: 0px; min-height: 0px; border-radius: {T.RADIUS_SM}px; }}"
             f"QPushButton:hover {{ background: {hover}; color: {hover_text}; }}"
+            f"QPushButton:pressed {{ background: {hover}; }}"
         )
 
 

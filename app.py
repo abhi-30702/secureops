@@ -1,13 +1,10 @@
-# app.py
+
 import sys
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QPalette, QColor
 
 from screens.widgets import theme as T
 
-
-# QSS template — tokens written as @NAME@ and substituted from theme below.
-# (Avoids brace-collision with QSS blocks that an f-string would cause.)
 _QSS_TEMPLATE = """
 QMainWindow, QDialog {
     background-color: @BG@;

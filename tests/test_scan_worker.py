@@ -162,3 +162,62 @@ def test_ip_mode_feeds_ip_directly_to_naabu(qtbot, db):
                                     worker.start()
 
     assert captured["ips"] == ["10.0.0.1"]
+
+
+def test_domain_scan_seeds_apex_into_dnsx_when_subfinder_empty(qtbot, db):
+    # Regression: a domain scan must probe the domain the user typed even when
+    # subfinder discovers no subdomains. Otherwise dnsx (and the whole downstream
+    # pipeline) runs on an empty list and every later tool scans 0 targets.
+    worker, _ = _make_worker(db, target="example.com")
+    captured = {}
+
+    def fake_dnsx(targets, runner, db, scan_id):
+        captured["dnsx_targets"] = targets
+        return []
+
+    with patch("workers.scan_worker.subfinder.run", return_value=[]):
+        with patch("workers.scan_worker.dnsx.run", side_effect=fake_dnsx):
+            with patch("workers.scan_worker.naabu.run", return_value=[]):
+                with patch("workers.scan_worker.httpx.run", return_value=[]):
+                    with patch("workers.scan_worker.katana.run", return_value=[]):
+                        with patch("workers.scan_worker.nuclei.run", return_value=[]):
+                            with patch("workers.scan_worker.nmap.run", return_value=[]):
+                                with patch("workers.scan_worker.nikto.run", return_value=[]):
+                                    with patch("workers.scan_worker.testssl.run", return_value=[]):
+                                        with qtbot.waitSignal(worker.scan_complete, timeout=5000):
+                                            worker.start()
+
+    assert captured["dnsx_targets"] == ["example.com"]
+
+
+def test_domain_scan_dedupes_apex_and_subdomains(qtbot, db):
+    # The apex is seeded first; a subfinder result equal to the apex must not be
+    # duplicated, and discovered subdomains are preserved in order after it.
+    from models import Host
+
+    worker, _ = _make_worker(db, target="example.com")
+    captured = {}
+
+    def make_host(sub):
+        return Host(id=None, scan_id=1, subdomain=sub, ip=None, port=None,
+                    protocol=None, service=None, url=None,
+                    source_tool="subfinder", created_at="2024-01-01T00:00:00")
+
+    def fake_dnsx(targets, runner, db, scan_id):
+        captured["dnsx_targets"] = targets
+        return []
+
+    subs = [make_host("example.com"), make_host("www.example.com"), make_host("mail.example.com")]
+    with patch("workers.scan_worker.subfinder.run", return_value=subs):
+        with patch("workers.scan_worker.dnsx.run", side_effect=fake_dnsx):
+            with patch("workers.scan_worker.naabu.run", return_value=[]):
+                with patch("workers.scan_worker.httpx.run", return_value=[]):
+                    with patch("workers.scan_worker.katana.run", return_value=[]):
+                        with patch("workers.scan_worker.nuclei.run", return_value=[]):
+                            with patch("workers.scan_worker.nmap.run", return_value=[]):
+                                with patch("workers.scan_worker.nikto.run", return_value=[]):
+                                    with patch("workers.scan_worker.testssl.run", return_value=[]):
+                                        with qtbot.waitSignal(worker.scan_complete, timeout=5000):
+                                            worker.start()
+
+    assert captured["dnsx_targets"] == ["example.com", "www.example.com", "mail.example.com"]

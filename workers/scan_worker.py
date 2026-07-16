@@ -82,7 +82,15 @@ class ScanWorker(QThread):
             subdomains_hosts = self._run_tool("subfinder", subfinder.run, self._target, runner, self._db, self._scan_id)
             subdomain_names = [h.subdomain for h in subdomains_hosts if h.subdomain]
 
-            resolved_hosts = self._run_tool("dnsx", dnsx.run, subdomain_names, runner, self._db, self._scan_id)
+            # Always include the apex domain itself as a seed. subfinder returns
+            # only *subdomains*, and for many domains (no discoverable subdomains,
+            # rate-limited, or single-host) it returns nothing — which would leave
+            # dnsx (and the entire downstream pipeline) with an empty target list,
+            # so every later tool "runs" but scans 0 targets. Seeding the apex
+            # guarantees a domain scan always probes the domain the user typed.
+            dnsx_targets = list(dict.fromkeys([self._target, *subdomain_names]))
+
+            resolved_hosts = self._run_tool("dnsx", dnsx.run, dnsx_targets, runner, self._db, self._scan_id)
             ips = list({h.ip for h in resolved_hosts if h.ip})
 
         port_hosts = self._run_tool("naabu", naabu.run, ips, runner, self._db, self._scan_id)

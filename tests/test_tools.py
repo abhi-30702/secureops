@@ -167,6 +167,48 @@ def test_nikto_returns_finding_from_json(db, tmp_path):
     assert "X-Frame-Options" in findings[0].title
 
 
+def test_nikto_drops_connection_error_noise(db):
+    # nikto files connection failures / run-status lines inside "vulnerabilities";
+    # those must NOT be recorded as findings. Only the real vuln survives.
+    from workers.tools import nikto
+    import json as _json
+
+    json_content = _json.dumps({
+        "host": "15.197.225.128",
+        "port": "80",
+        "vulnerabilities": [
+            {"id": "0", "method": "GET", "url": "/", "msg": "Unable to connect to 15.197.225.128:80."},
+            {"id": "1", "method": "GET", "url": "/", "msg": "ERROR: No web server found on host"},
+            {"id": "2", "method": "GET", "url": "/", "msg": ""},
+            {"id": "999986", "method": "GET", "url": "/", "msg": "X-Frame-Options header not present.", "references": "CWE-693"},
+        ],
+    })
+
+    class NiktoMockRunner:
+        def run_buffered(self, cmd, timeout=300):
+            if "-output" in cmd:
+                path = cmd[cmd.index("-output") + 1]
+                with open(path, "w") as f:
+                    f.write(json_content)
+            return ""
+
+    scan_id = db.insert_scan(Scan(id=None, client_id=None, target="15.197.225.128", status="running", started_at="2024-01-01T00:00:00", finished_at=None))
+    findings = nikto.run(["http://15.197.225.128"], NiktoMockRunner(), db, scan_id)
+
+    assert len(findings) == 1
+    assert "X-Frame-Options" in findings[0].title
+
+
+def test_nikto_is_noise_helper():
+    from workers.tools.nikto import _is_noise
+    assert _is_noise("Unable to connect to host:80.") is True
+    assert _is_noise("ERROR: something broke") is True
+    assert _is_noise("") is True
+    assert _is_noise("   ") is True
+    assert _is_noise("X-Frame-Options header not present.") is False
+    assert _is_noise("Cookie set without HttpOnly flag") is False
+
+
 # ── testssl ───────────────────────────────────────────────────────────────────
 
 def test_testssl_returns_finding_for_critical(db):

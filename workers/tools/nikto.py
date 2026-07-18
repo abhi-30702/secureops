@@ -16,6 +16,34 @@ _TIMEOUT = 600  # 10 min per host
 # before the watchdog fires.
 _MAXTIME = "570s"
 
+# nikto files connection failures and run-status lines inside its
+# "vulnerabilities" array (e.g. "Unable to connect to host:80."). These are
+# operational messages, not security findings — recording them as medium-severity
+# vulns pollutes the report (see the sherpavector scan, whose only two "findings"
+# were connection errors). Drop any item whose message matches these markers.
+_NOISE_MARKERS = (
+    "unable to connect",
+    "no web server found",
+    "connection refused",
+    "connection reset",
+    "connection timed out",
+    "timed out",
+    "did not respond",
+    "network is unreachable",
+    "cannot resolve",
+    "host(s) tested",
+    "0 item(s) reported",
+    "no cgi directories found",
+    "error:",
+)
+
+
+def _is_noise(msg: str) -> bool:
+    m = (msg or "").strip().lower()
+    if not m:
+        return True
+    return any(marker in m for marker in _NOISE_MARKERS)
+
 
 def run(http_hosts: list[str], runner: ToolRunner, db: DB, scan_id: int) -> list[Finding]:
     findings = []
@@ -67,7 +95,11 @@ def _parse_json_file(path: str, db: DB, scan_id: int) -> list[Finding]:
         if not isinstance(host_obj, dict):
             continue
         for vuln in host_obj.get("vulnerabilities") or []:
-            msg = vuln.get("msg") or vuln.get("message") or "Unknown issue"
+            if not isinstance(vuln, dict):
+                continue
+            msg = vuln.get("msg") or vuln.get("message") or ""
+            if _is_noise(msg):
+                continue
             finding = Finding(
                 id=None,
                 scan_id=scan_id,

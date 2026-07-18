@@ -504,11 +504,11 @@ class ReportScreen(QWidget):
         incident_events = self._db.get_incident_events(self._scan_id)
         osint_items = self._db.get_osint_items(self._scan_id)
         try:
-            from report.pdf_generator import PdfGenerator
-            PdfGenerator(scan=scan, hosts=hosts, findings=findings,
-                         output_path=path, advisory_items=advisory_items,
-                         incident_events=incident_events,
-                         osint_items=osint_items).generate()
+            from report.pdf_report import ProfessionalReport
+            ProfessionalReport(scan=scan, hosts=hosts, findings=findings,
+                               output_path=path, advisory_items=advisory_items,
+                               incident_events=incident_events,
+                               osint_items=osint_items).generate()
             QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))

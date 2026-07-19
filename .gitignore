@@ -17,3 +17,6 @@ venv/
 Error/
 Non-Error/
 Huge-Logs/
+
+# Generated report screenshots (local artifacts, not for the repo)
+internal_topology.png

@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import threading
 from models import Client, Scan, Host, Finding, Schedule
@@ -118,6 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_netevt_id     ON network_events(id DESC);
 
 class DB:
     def __init__(self, path: str = ":memory:"):
+        self._path = path
         self._conn = sqlite3.connect(path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -536,6 +538,83 @@ class DB:
             self._conn.execute("DELETE FROM network_alerts")
             self._conn.execute("DELETE FROM network_events")
             self._conn.commit()
+
+    def network_event_count(self) -> int:
+        """Cheap total-row count for the storage indicator."""
+        with self._lock:
+            return self._conn.execute(
+                "SELECT COUNT(*) FROM network_events"
+            ).fetchone()[0]
+
+    def _purge_orphan_alerts(self) -> None:
+        """Drop alerts whose backing event has been purged. Caller holds the lock."""
+        self._conn.execute(
+            "DELETE FROM network_alerts WHERE event_id IS NOT NULL "
+            "AND event_id NOT IN (SELECT id FROM network_events)"
+        )
+
+    def purge_network_events_keep_last(self, max_rows: int) -> int:
+        """Retention by row cap: keep only the newest *max_rows* events (and their
+        alerts), deleting the rest. Returns the number of events deleted."""
+        if max_rows < 0:
+            return 0
+        with self._lock:
+            # id of the (max_rows+1)-th newest event → everything <= it is surplus.
+            row = self._conn.execute(
+                "SELECT id FROM network_events ORDER BY id DESC LIMIT 1 OFFSET ?",
+                (max_rows,),
+            ).fetchone()
+            if row is None:
+                return 0  # fewer than max_rows rows — nothing to purge
+            threshold_id = row["id"]
+            cur = self._conn.execute(
+                "DELETE FROM network_events WHERE id <= ?", (threshold_id,)
+            )
+            deleted = cur.rowcount
+            self._purge_orphan_alerts()
+            self._conn.commit()
+        return deleted
+
+    def purge_network_events_older_than(self, days: int) -> int:
+        """Retention by age: delete events (and alerts) older than *days* days.
+        Timestamps are UTC ISO-8601, so lexical comparison is valid. Returns the
+        number of events deleted."""
+        if days < 0:
+            return 0
+        from datetime import datetime, timezone, timedelta
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        with self._lock:
+            cur = self._conn.execute(
+                "DELETE FROM network_events WHERE timestamp != '' AND timestamp < ?",
+                (cutoff,),
+            )
+            deleted = cur.rowcount
+            self._conn.execute(
+                "DELETE FROM network_alerts WHERE created_at != '' AND created_at < ?",
+                (cutoff,),
+            )
+            self._purge_orphan_alerts()
+            self._conn.commit()
+        return deleted
+
+    def db_size_bytes(self) -> int:
+        """On-disk size of the SQLite database (main + WAL/shm sidecars).
+        Returns 0 for an in-memory database."""
+        if not self._path or self._path == ":memory:":
+            return 0
+        total = 0
+        for suffix in ("", "-wal", "-shm"):
+            try:
+                total += os.path.getsize(self._path + suffix)
+            except OSError:
+                pass
+        return total
+
+    def vacuum(self) -> None:
+        """Compact the database file to reclaim space freed by deletes.
+        Callers should avoid running this during an active write workload."""
+        with self._lock:
+            self._conn.execute("VACUUM")
 
     def get_setting(self, key: str) -> str | None:
         row = self._conn.execute(

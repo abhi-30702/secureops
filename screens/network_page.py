@@ -247,6 +247,8 @@ class NetworkPage(QWidget):
         sv.addWidget(self._top_list)
         col.addWidget(stats)
 
+        col.addWidget(self._build_retention())
+
         # --- alerts ---
         alerts_box = QFrame()
         alerts_box.setObjectName("card")
@@ -274,6 +276,54 @@ class NetworkPage(QWidget):
 
         return panel
 
+    def _build_retention(self) -> QWidget:
+        """Retention/purge controls — bound the audit trail so the SQLite DB
+        can't grow without limit under a long capture."""
+        box = QFrame()
+        box.setObjectName("card")
+        v = QVBoxLayout(box)
+        v.setContentsMargins(T.SP_MD, T.SP_MD, T.SP_MD, T.SP_MD)
+        v.setSpacing(T.SP_SM)
+
+        hdr = QLabel("RETENTION")
+        hdr.setStyleSheet(T.overline(T.TXT3, T.FS_TINY))
+        v.addWidget(hdr)
+
+        policy = QHBoxLayout()
+        policy.setSpacing(T.SP_SM)
+        self._ret_mode = QComboBox()
+        self._ret_mode.addItems(["Keep last N events", "Keep last N days"])
+        self._ret_mode.currentIndexChanged.connect(self._on_ret_mode_changed)
+        self._ret_value = QSpinBox()
+        self._ret_value.setFixedWidth(96)
+        self._ret_value.valueChanged.connect(self._on_ret_value_changed)
+        policy.addWidget(self._ret_mode, stretch=1)
+        policy.addWidget(self._ret_value)
+        v.addLayout(policy)
+
+        self._ret_auto = QCheckBox("Auto-purge during capture")
+        self._ret_auto.setStyleSheet(f"color: {T.TXT2}; font-size: {T.FS_SMALL}px;")
+        self._ret_auto.toggled.connect(lambda _=False: self._save_retention_settings())
+        v.addWidget(self._ret_auto)
+
+        foot = QHBoxLayout()
+        self._storage_lbl = QLabel("Stored: —")
+        self._storage_lbl.setStyleSheet(f"color: {T.TXT3}; font-size: {T.FS_TINY}px;")
+        self._purge_btn = SecondaryButton("Purge now")
+        self._purge_btn.setEnabled(self._db is not None)
+        self._purge_btn.clicked.connect(self._on_purge_now)
+        foot.addWidget(self._storage_lbl, stretch=1)
+        foot.addWidget(self._purge_btn)
+        v.addLayout(foot)
+
+        # periodic auto-purge / indicator refresh while a capture runs
+        self._purge_timer = QTimer(self)
+        self._purge_timer.setInterval(60_000)
+        self._purge_timer.timeout.connect(self._on_purge_tick)
+
+        self._load_retention_settings()
+        return box
+
     # ------------------------------------------------------------------ #
     # lifecycle
     # ------------------------------------------------------------------ #
@@ -282,6 +332,7 @@ class NetworkPage(QWidget):
         if not self._seeded and self._db is not None:
             self._seed_from_db()
             self._seeded = True
+        self._update_storage_label()
 
     def _seed_from_db(self):
         """Populate the table + stats from the persisted audit trail."""
@@ -293,6 +344,7 @@ class NetworkPage(QWidget):
             self._append_row(ev, scroll=False)
             self._tally(ev)
         self._refresh_stats()
+        self._update_storage_label()
         if events:
             self._table.scrollToBottom()
 
@@ -311,6 +363,10 @@ class NetworkPage(QWidget):
         if self._db is None:
             return
 
+        # Bound the audit trail before we start writing more to it.
+        if self._ret_auto.isChecked():
+            self._apply_retention()
+
         demo = self._mode.currentIndex() == 0
         iface = self._iface.text().strip() or None
         self._worker = NetworkMonitorWorker(
@@ -322,15 +378,18 @@ class NetworkPage(QWidget):
         self._worker.error_occurred.connect(self._on_error)
         self._worker.finished.connect(self._on_finished)
         self._worker.start()
+        self._purge_timer.start()  # periodic auto-purge + indicator refresh
 
         self._start_btn.setText("■  Stop")
         self._mode.setEnabled(False)
         self._status.setText("Starting…")
 
     def _on_finished(self):
+        self._purge_timer.stop()
         self._start_btn.setText("▶  Start")
         self._start_btn.setEnabled(True)
         self._mode.setEnabled(True)
+        self._update_storage_label()
 
     def _on_clear(self):
         if self._worker and self._worker.isRunning():
@@ -354,7 +413,129 @@ class NetworkPage(QWidget):
                 item.widget().deleteLater()
         self._alert_empty.setVisible(True)
         self._refresh_stats()
+        self._update_storage_label()
         self._status.setText("Cleared.")
+
+    # ------------------------------------------------------------------ #
+    # retention / purge
+    # ------------------------------------------------------------------ #
+    _DEFAULTS = {"mode": "rows", "rows": 50000, "days": 30, "auto": True}
+
+    def _load_retention_settings(self):
+        """Restore persisted policy (or sensible defaults) into the widgets."""
+        d = self._DEFAULTS
+        rows, days, auto, mode = d["rows"], d["days"], d["auto"], d["mode"]
+        if self._db is not None:
+            try:
+                rows = int(self._db.get_setting("net_retention_rows") or rows)
+                days = int(self._db.get_setting("net_retention_days") or days)
+                auto = (self._db.get_setting("net_retention_auto") or ("1" if auto else "0")) == "1"
+                mode = self._db.get_setting("net_retention_mode") or mode
+            except (ValueError, TypeError):
+                pass
+        self._ret_rows_val = max(500, rows)
+        self._ret_days_val = max(1, days)
+        self._ret_auto.blockSignals(True)
+        self._ret_auto.setChecked(auto)
+        self._ret_auto.blockSignals(False)
+        self._ret_mode.blockSignals(True)
+        self._ret_mode.setCurrentIndex(1 if mode == "days" else 0)
+        self._ret_mode.blockSignals(False)
+        self._sync_ret_spin()
+
+    def _sync_ret_spin(self):
+        """Point the spinbox at the value/range for the active policy."""
+        self._ret_value.blockSignals(True)
+        if self._ret_mode.currentIndex() == 1:  # days
+            self._ret_value.setRange(1, 3650)
+            self._ret_value.setSingleStep(1)
+            self._ret_value.setSuffix(" d")
+            self._ret_value.setValue(self._ret_days_val)
+        else:  # rows
+            self._ret_value.setRange(500, 5_000_000)
+            self._ret_value.setSingleStep(1000)
+            self._ret_value.setSuffix("")
+            self._ret_value.setValue(self._ret_rows_val)
+        self._ret_value.blockSignals(False)
+
+    def _on_ret_mode_changed(self, _idx: int):
+        self._sync_ret_spin()
+        self._save_retention_settings()
+
+    def _on_ret_value_changed(self, val: int):
+        if self._ret_mode.currentIndex() == 1:
+            self._ret_days_val = val
+        else:
+            self._ret_rows_val = val
+        self._save_retention_settings()
+
+    def _save_retention_settings(self):
+        if self._db is None:
+            return
+        try:
+            self._db.set_setting("net_retention_mode",
+                                 "days" if self._ret_mode.currentIndex() == 1 else "rows")
+            self._db.set_setting("net_retention_rows", str(self._ret_rows_val))
+            self._db.set_setting("net_retention_days", str(self._ret_days_val))
+            self._db.set_setting("net_retention_auto",
+                                 "1" if self._ret_auto.isChecked() else "0")
+        except Exception:
+            pass
+
+    def _apply_retention(self) -> int:
+        """Run the configured purge. Returns events deleted."""
+        if self._db is None:
+            return 0
+        try:
+            if self._ret_mode.currentIndex() == 1:
+                deleted = self._db.purge_network_events_older_than(self._ret_days_val)
+            else:
+                deleted = self._db.purge_network_events_keep_last(self._ret_rows_val)
+        except Exception:
+            deleted = 0
+        self._update_storage_label()
+        return deleted
+
+    def _on_purge_tick(self):
+        if self._ret_auto.isChecked():
+            self._apply_retention()
+        else:
+            self._update_storage_label()
+
+    def _on_purge_now(self):
+        if self._db is None:
+            return
+        deleted = self._apply_retention()
+        # Reclaim disk space only when idle — VACUUM would stall a live writer.
+        if not (self._worker and self._worker.isRunning()):
+            try:
+                self._db.vacuum()
+            except Exception:
+                pass
+        self._update_storage_label()
+        self._status.setText(f"Purged {deleted:,} event(s) from the audit trail.")
+        self._status.setStyleSheet(f"color: {T.TXT3}; font-size: {T.FS_SMALL}px;")
+
+    @staticmethod
+    def _fmt_size(nbytes: int) -> str:
+        size = float(nbytes)
+        for unit in ("B", "KB", "MB", "GB"):
+            if size < 1024 or unit == "GB":
+                return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} GB"
+
+    def _update_storage_label(self):
+        if self._db is None:
+            self._storage_lbl.setText("Stored: —")
+            return
+        try:
+            count = self._db.network_event_count()
+            size = self._db.db_size_bytes()
+        except Exception:
+            return
+        suffix = f" · {self._fmt_size(size)}" if size else ""
+        self._storage_lbl.setText(f"Stored: {count:,} events{suffix}")
 
     # ------------------------------------------------------------------ #
     # worker signals

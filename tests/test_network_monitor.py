@@ -124,6 +124,98 @@ def test_clear_network_data():
 
 
 # --------------------------------------------------------------------------- #
+# retention / purge
+# --------------------------------------------------------------------------- #
+def test_purge_keep_last_trims_to_cap():
+    db = DB(":memory:")
+    for i in range(10):
+        db.insert_network_event({"domain": f"d{i}.example", "src_ip": "1.2.3.4",
+                                 "status": "allowed", "port": 53, "protocol": "DNS"})
+    deleted = db.purge_network_events_keep_last(4)
+    assert deleted == 6
+    rows = db.query_network_events(limit=100)
+    assert len(rows) == 4
+    # the 4 newest survive (d6..d9)
+    assert {r["domain"] for r in rows} == {"d6.example", "d7.example", "d8.example", "d9.example"}
+
+
+def test_purge_keep_last_noop_when_under_cap():
+    db = DB(":memory:")
+    for i in range(3):
+        db.insert_network_event({"domain": f"d{i}.example", "src_ip": "1.2.3.4",
+                                 "status": "allowed"})
+    assert db.purge_network_events_keep_last(50000) == 0
+    assert db.network_event_count() == 3
+
+
+def test_purge_keep_last_removes_orphan_alerts():
+    db = DB(":memory:")
+    ids = []
+    for i in range(5):
+        eid = db.insert_network_event({"domain": f"bad{i}.example", "src_ip": "1.2.3.4",
+                                       "status": "blocked"})
+        db.insert_network_alert({"event_id": eid, "severity": "high",
+                                 "domain": f"bad{i}.example", "created_at": "2026-07-23T10:00:00"})
+        ids.append(eid)
+    db.purge_network_events_keep_last(2)
+    alerts = db.query_network_alerts(limit=100)
+    assert len(alerts) == 2  # alerts for purged events are gone too
+
+
+def test_purge_older_than_by_age():
+    db = DB(":memory:")
+    db.insert_network_event({"domain": "old.example", "src_ip": "1.2.3.4",
+                             "status": "allowed", "timestamp": "2000-01-01T00:00:00+00:00"})
+    db.insert_network_event({"domain": "new.example", "src_ip": "1.2.3.4",
+                             "status": "allowed",
+                             "timestamp": _dt_now_iso()})
+    deleted = db.purge_network_events_older_than(30)
+    assert deleted == 1
+    rows = db.query_network_events(limit=100)
+    assert len(rows) == 1 and rows[0]["domain"] == "new.example"
+
+
+def test_event_count_and_size():
+    db = DB(":memory:")
+    assert db.network_event_count() == 0
+    db.insert_network_event({"domain": "x.example", "src_ip": "1.2.3.4", "status": "allowed"})
+    assert db.network_event_count() == 1
+    assert db.db_size_bytes() == 0  # in-memory
+
+
+def test_purge_and_vacuum_on_disk(tmp_path):
+    path = str(tmp_path / "net.db")
+    db = DB(path)
+    for i in range(200):
+        db.insert_network_event({"domain": f"d{i}.example", "src_ip": "1.2.3.4",
+                                 "status": "allowed"})
+    db.purge_network_events_keep_last(10)
+    db.vacuum()  # must not raise
+    assert db.network_event_count() == 10
+    assert db.db_size_bytes() > 0
+
+
+def test_page_retention_apply(qtbot):
+    from screens.network_page import NetworkPage
+    db = DB(":memory:")
+    page = NetworkPage(db=db)
+    qtbot.addWidget(page)
+    for i in range(20):
+        db.insert_network_event({"domain": f"d{i}.example", "src_ip": "1.2.3.4",
+                                 "status": "allowed"})
+    page._ret_mode.setCurrentIndex(0)   # keep-last-N-events
+    page._ret_rows_val = 5
+    deleted = page._apply_retention()
+    assert deleted == 15
+    assert db.network_event_count() == 5
+
+
+def _dt_now_iso():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+
+# --------------------------------------------------------------------------- #
 # page (offscreen)
 # --------------------------------------------------------------------------- #
 def test_page_builds_and_receives_events(qtbot):

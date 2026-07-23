@@ -532,6 +532,17 @@ class DB:
             "top_blocked": [(r["domain"], r["n"]) for r in top_rows],
         }
 
+    def network_top_blocked_employees(self, limit: int = 10) -> list[tuple[str, int]]:
+        """Employees (by workstation label) with the most blocked requests."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT employee_name, COUNT(*) AS n FROM network_events "
+                "WHERE status='blocked' AND employee_name != '' "
+                "GROUP BY employee_name ORDER BY n DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [(r["employee_name"], r["n"]) for r in rows]
+
     def clear_network_data(self) -> None:
         """Wipe the audit trail (explicit user action from the page)."""
         with self._lock:

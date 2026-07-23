@@ -181,6 +181,7 @@ class ProfessionalReport:
                  advisory_items: list | None = None,
                  incident_events: list | None = None,
                  osint_items: list | None = None,
+                 network_summary: dict | None = None,
                  collect_versions: bool = True):
         self._scan = scan
         self._hosts = hosts or []
@@ -190,6 +191,7 @@ class ProfessionalReport:
         self._advisory_items = advisory_items or []
         self._incident_events = incident_events or []
         self._osint_items = osint_items or []
+        self._network_summary = network_summary or {}
         self._collect_versions = collect_versions
         self._report_id = self._make_report_id()
 
@@ -276,6 +278,8 @@ class ProfessionalReport:
             parts.append(self._breach_html())
         if self._osint_items:
             parts.append(self._osint_html())
+        if self._has_network_data():
+            parts.append(self._network_html())
         if self._advisory_items:
             parts.append(self._advisory_html())
         parts.append(self._appendix_html(versions))
@@ -556,6 +560,78 @@ class ProfessionalReport:
      items expands the external attack surface.</p>
   <table class="grid"><thead><tr><th>Type</th><th>Count</th></tr></thead><tbody>{summary}</tbody></table>
   {details}
+</section>
+"""
+
+    def _has_network_data(self) -> bool:
+        stats = self._network_summary.get("stats") or {}
+        return bool(stats.get("total"))
+
+    def _network_html(self) -> str:
+        s = self._network_summary
+        stats = s.get("stats") or {}
+        total = int(stats.get("total", 0) or 0)
+        blocked = int(stats.get("blocked", 0) or 0)
+        allowed = int(stats.get("allowed", total - blocked) or 0)
+        employees = int(stats.get("unique_employees", 0) or 0)
+        rate = (100.0 * blocked / total) if total else 0.0
+
+        summary = "".join(
+            f"<tr><th>{html.escape(k)}</th><td>{html.escape(v)}</td></tr>"
+            for k, v in [
+                ("Total requests observed", f"{total:,}"),
+                ("Allowed", f"{allowed:,}"),
+                ("Blocked (policy / threat-intel)", f"{blocked:,}"),
+                ("Block rate", f"{rate:.1f}%"),
+                ("Distinct workstations", f"{employees:,}"),
+            ]
+        )
+
+        top_domains = stats.get("top_blocked") or []
+        dom_rows = "".join(
+            f"<tr><td>{html.escape(str(d))}</td><td>{n}</td></tr>" for d, n in top_domains
+        ) or "<tr><td colspan='2'>No blocked domains recorded.</td></tr>"
+
+        top_emp = s.get("top_employees") or []
+        emp_rows = "".join(
+            f"<tr><td>{html.escape(str(e))}</td><td>{n}</td></tr>" for e, n in top_emp
+        ) or "<tr><td colspan='2'>No flagged workstations.</td></tr>"
+
+        alerts = s.get("alerts") or []
+        alert_rows = ""
+        for a in alerts:
+            ts = (a.get("created_at", "") or "")[:19].replace("T", " ")
+            sev = (a.get("severity", "") or "info").lower()
+            sev_color = _SEV_COLOR.get(sev, _SEV_COLOR["info"])
+            ack = "Yes" if a.get("acknowledged") else "No"
+            alert_rows += (
+                f"<tr><td>{html.escape(ts)}</td>"
+                f"<td><b style='color:{sev_color}'>{html.escape(sev.upper())}</b></td>"
+                f"<td>{html.escape(a.get('employee_name', '') or '')}</td>"
+                f"<td>{html.escape(a.get('domain', '') or '')}</td>"
+                f"<td>{html.escape(a.get('notes', '') or '')}</td>"
+                f"<td>{ack}</td></tr>"
+            )
+        alerts_table = (
+            f"<h4>Red-Flag Alerts</h4>"
+            f"<table class='grid'><thead><tr><th>Time</th><th>Severity</th>"
+            f"<th>Workstation</th><th>Domain</th><th>Reason</th><th>Ack</th></tr></thead>"
+            f"<tbody>{alert_rows}</tbody></table>"
+        ) if alert_rows else ""
+
+        return f"""
+<section class="page">
+  {self._section_head('•', 'Network Activity Monitoring')}
+  <p>Passive monitoring of employee web activity, cross-referenced against the
+     organisation blocklist and threat-intelligence feeds. Figures reflect the
+     current monitoring audit trail (detection and reporting only — no traffic
+     was blocked or altered).</p>
+  <table class="kv">{summary}</table>
+  <h4>Top Blocked Domains</h4>
+  <table class='grid'><thead><tr><th>Domain</th><th>Hits</th></tr></thead><tbody>{dom_rows}</tbody></table>
+  <h4>Most Flagged Workstations</h4>
+  <table class='grid'><thead><tr><th>Workstation / Employee</th><th>Blocked requests</th></tr></thead><tbody>{emp_rows}</tbody></table>
+  {alerts_table}
 </section>
 """
 

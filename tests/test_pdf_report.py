@@ -65,6 +65,52 @@ def test_report_with_advisory(tmp_path):
 
 # ── rating / metadata ─────────────────────────────────────────────────────────
 
+def test_report_with_network_summary(tmp_path):
+    net = {
+        "stats": {"total": 8000, "blocked": 82, "allowed": 7918,
+                  "unique_employees": 8,
+                  "top_blocked": [("malware-c2.example", 26), ("casino-online.example", 13)]},
+        "top_employees": [("j.rivera (Sales)", 40), ("s.okafor (Engineering)", 22)],
+        "alerts": [{"severity": "critical", "domain": "malware-c2.example",
+                    "employee_name": "j.rivera (Sales)", "created_at": "2026-07-23T10:00:00",
+                    "acknowledged": False, "notes": "Known C2"}],
+    }
+    path = str(tmp_path / "net.pdf")
+    ProfessionalReport(scan=_scan(), hosts=[], findings=[_finding()], output_path=path,
+                       network_summary=net, collect_versions=False).generate()
+    assert os.path.exists(path) and os.path.getsize(path) > 2000
+
+
+def test_network_section_included_only_with_data():
+    with_data = ProfessionalReport(scan=_scan(), hosts=[], findings=[],
+                                   network_summary={"stats": {"total": 5, "blocked": 1}},
+                                   collect_versions=False)
+    assert with_data._has_network_data()
+    assert "Network Activity Monitoring" in with_data._network_html()
+
+    empty = ProfessionalReport(scan=_scan(), hosts=[], findings=[], collect_versions=False)
+    assert not empty._has_network_data()
+
+    zero = ProfessionalReport(scan=_scan(), hosts=[], findings=[],
+                              network_summary={"stats": {"total": 0}}, collect_versions=False)
+    assert not zero._has_network_data()
+
+
+def test_network_html_renders_alert_and_domains():
+    r = ProfessionalReport(
+        scan=_scan(), hosts=[], findings=[], collect_versions=False,
+        network_summary={
+            "stats": {"total": 100, "blocked": 10, "allowed": 90, "unique_employees": 3,
+                      "top_blocked": [("bad.example", 7)]},
+            "top_employees": [("emp1", 6)],
+            "alerts": [{"severity": "high", "domain": "bad.example", "employee_name": "emp1",
+                        "created_at": "2026-07-23T09:00:00", "acknowledged": True, "notes": "P2P"}],
+        })
+    out = r._network_html()
+    assert "bad.example" in out and "emp1" in out and "HIGH" in out
+    assert "10.0%" in out  # block rate
+
+
 def test_report_id_format():
     r = ProfessionalReport(scan=_scan(), hosts=[], findings=[], collect_versions=False)
     assert r._report_id == "SO-0015-20260603"

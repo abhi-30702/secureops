@@ -503,15 +503,34 @@ class ReportScreen(QWidget):
         ]
         incident_events = self._db.get_incident_events(self._scan_id)
         osint_items = self._db.get_osint_items(self._scan_id)
+        network_summary = self._build_network_summary()
         try:
             from report.pdf_report import ProfessionalReport
             ProfessionalReport(scan=scan, hosts=hosts, findings=findings,
                                output_path=path, advisory_items=advisory_items,
                                incident_events=incident_events,
-                               osint_items=osint_items).generate()
+                               osint_items=osint_items,
+                               network_summary=network_summary).generate()
             QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
+
+    def _build_network_summary(self) -> dict:
+        """Assemble the Network Activity Monitor audit-trail summary for the PDF.
+
+        Network events are a global audit trail (not scan-scoped), so this reflects
+        current monitoring posture. Returns {} when nothing has been captured."""
+        try:
+            stats = self._db.network_stats()
+            if not stats.get("total"):
+                return {}
+            return {
+                "stats": stats,
+                "top_employees": self._db.network_top_blocked_employees(limit=10),
+                "alerts": self._db.query_network_alerts(limit=25),
+            }
+        except Exception:
+            return {}
 
     def reset(self):
         if self._advisor_worker is not None:

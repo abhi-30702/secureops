@@ -11,6 +11,7 @@ EXPANDED_WIDTH = SIDEBAR_WIDTH
 # (icon, label, screen_index, group) — display order; screen_index targets the stack.
 _NAV_ITEMS = [
     ("▣", "Dashboard", 0, "Monitor"),
+    ("\U0001f4e1", "Network", 9, "Monitor"),
     ("\U0001f553", "History", 8, "Monitor"),
     ("⚡", "Scan", 2, "Assess"),
     ("⬡", "Internal", 5, "Assess"),
@@ -31,7 +32,7 @@ class Sidebar(QWidget):
         self._active_index = 0
         # Buttons indexed by screen index (so _buttons[i] navigates to screen i),
         # regardless of the grouped display order. main_window + tests rely on this.
-        self._buttons: list[QPushButton | None] = [None] * 9
+        self._buttons: list[QPushButton | None] = [None] * 10
         self._setup_ui()
 
     def _setup_ui(self):

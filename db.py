@@ -89,6 +89,31 @@ CREATE TABLE IF NOT EXISTS companies (
     firewall_type TEXT DEFAULT '',
     created_at    TEXT DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS network_events (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp      TEXT,
+    src_ip         TEXT,
+    dst_ip         TEXT,
+    domain         TEXT,
+    port           INTEGER,
+    protocol       TEXT,
+    status         TEXT,          -- 'allowed' | 'blocked'
+    blocked_reason TEXT,
+    employee_name  TEXT
+);
+CREATE TABLE IF NOT EXISTS network_alerts (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id      INTEGER REFERENCES network_events(id),
+    severity      TEXT,
+    domain        TEXT,
+    src_ip        TEXT,
+    employee_name TEXT,
+    created_at    TEXT,
+    acknowledged  INTEGER NOT NULL DEFAULT 0,
+    notes         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_netevt_status ON network_events(status);
+CREATE INDEX IF NOT EXISTS idx_netevt_id     ON network_events(id DESC);
 """
 
 class DB:
@@ -371,6 +396,145 @@ class DB:
             self._conn.execute(
                 "DELETE FROM advisory_items WHERE scan_id=?", (scan_id,)
             )
+            self._conn.commit()
+
+    # ------------------------------------------------------------------ #
+    # Network Activity Monitor (live employee web-activity audit trail)   #
+    # ------------------------------------------------------------------ #
+    def insert_network_event(self, event: dict) -> int:
+        """Persist one captured network event. Called from the capture worker
+        thread — every event is written immediately (crash-safe audit trail)."""
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO network_events "
+                "(timestamp, src_ip, dst_ip, domain, port, protocol, status, "
+                " blocked_reason, employee_name) VALUES (?,?,?,?,?,?,?,?,?)",
+                (
+                    event.get("timestamp", ""),
+                    event.get("src_ip", ""),
+                    event.get("dst_ip", ""),
+                    event.get("domain", ""),
+                    event.get("port"),
+                    event.get("protocol", ""),
+                    event.get("status", "allowed"),
+                    event.get("blocked_reason", ""),
+                    event.get("employee_name", ""),
+                ),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def insert_network_alert(self, alert: dict) -> int:
+        """Persist a red-flag alert for a blocked event."""
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO network_alerts "
+                "(event_id, severity, domain, src_ip, employee_name, created_at, "
+                " acknowledged, notes) VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    alert.get("event_id"),
+                    alert.get("severity", "medium"),
+                    alert.get("domain", ""),
+                    alert.get("src_ip", ""),
+                    alert.get("employee_name", ""),
+                    alert.get("created_at", ""),
+                    1 if alert.get("acknowledged") else 0,
+                    alert.get("notes", ""),
+                ),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def query_network_events(
+        self,
+        limit: int = 200,
+        status: str | None = None,
+        src_ip: str | None = None,
+        domain: str | None = None,
+    ) -> list[dict]:
+        """Newest-first events, optionally filtered. Used to seed the live table
+        from the audit trail when the page opens."""
+        clauses: list[str] = []
+        params: list = []
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if src_ip:
+            clauses.append("src_ip LIKE ?")
+            params.append(f"%{src_ip}%")
+        if domain:
+            clauses.append("domain LIKE ?")
+            params.append(f"%{domain}%")
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        params.append(limit)
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, timestamp, src_ip, dst_ip, domain, port, protocol, "
+                "status, blocked_reason, employee_name FROM network_events"
+                f"{where} ORDER BY id DESC LIMIT ?",
+                params,
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def query_network_alerts(
+        self, limit: int = 100, only_unacked: bool = False
+    ) -> list[dict]:
+        where = " WHERE acknowledged = 0" if only_unacked else ""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, event_id, severity, domain, src_ip, employee_name, "
+                "created_at, acknowledged, notes FROM network_alerts"
+                f"{where} ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def set_network_alert_ack(
+        self, alert_id: int, acknowledged: bool, notes: str | None = None
+    ) -> None:
+        with self._lock:
+            if notes is None:
+                self._conn.execute(
+                    "UPDATE network_alerts SET acknowledged=? WHERE id=?",
+                    (1 if acknowledged else 0, alert_id),
+                )
+            else:
+                self._conn.execute(
+                    "UPDATE network_alerts SET acknowledged=?, notes=? WHERE id=?",
+                    (1 if acknowledged else 0, notes, alert_id),
+                )
+            self._conn.commit()
+
+    def network_stats(self) -> dict:
+        """Aggregate counters for the statistics panel."""
+        with self._lock:
+            total = self._conn.execute(
+                "SELECT COUNT(*) FROM network_events"
+            ).fetchone()[0]
+            blocked = self._conn.execute(
+                "SELECT COUNT(*) FROM network_events WHERE status='blocked'"
+            ).fetchone()[0]
+            employees = self._conn.execute(
+                "SELECT COUNT(DISTINCT src_ip) FROM network_events WHERE src_ip != ''"
+            ).fetchone()[0]
+            top_rows = self._conn.execute(
+                "SELECT domain, COUNT(*) AS n FROM network_events "
+                "WHERE status='blocked' AND domain != '' "
+                "GROUP BY domain ORDER BY n DESC LIMIT 5"
+            ).fetchall()
+        return {
+            "total": total,
+            "blocked": blocked,
+            "allowed": total - blocked,
+            "unique_employees": employees,
+            "top_blocked": [(r["domain"], r["n"]) for r in top_rows],
+        }
+
+    def clear_network_data(self) -> None:
+        """Wipe the audit trail (explicit user action from the page)."""
+        with self._lock:
+            self._conn.execute("DELETE FROM network_alerts")
+            self._conn.execute("DELETE FROM network_events")
             self._conn.commit()
 
     def get_setting(self, key: str) -> str | None:

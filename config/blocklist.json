@@ -1,0 +1,25 @@
+{
+  "_comment": "SecureOps Network Activity Monitor — blocklist / firewall policy. Domains here are flagged RED when observed in DNS/HTTP/TLS traffic. Detection & reporting only; nothing here blocks traffic. Edit to match your organisation's Acceptable Use Policy and threat-intel feeds.",
+  "blocklist": [
+    {"pattern": "malware-c2.example",         "reason": "Known C2 / malware callback (threat intel)", "severity": "critical"},
+    {"pattern": "*.phish-login.example",      "reason": "Credential-phishing infrastructure",         "severity": "critical"},
+    {"pattern": "exfil-drop.example",         "reason": "Suspected data-exfiltration endpoint",       "severity": "critical"},
+    {"pattern": "*.torrent-tracker.example",  "reason": "P2P / piracy — AUP violation",               "severity": "high"},
+    {"pattern": "*.coinhive-miner.example",   "reason": "Cryptominer / browser mining",               "severity": "high"},
+    {"pattern": "*.anonymizer-proxy.example", "reason": "Anonymising proxy — policy bypass",           "severity": "high"},
+    {"pattern": "*.casino-online.example",    "reason": "Online gambling — AUP violation",            "severity": "medium"},
+    {"pattern": "*.adult-content.example",    "reason": "Adult content — AUP violation",              "severity": "medium"},
+    {"pattern": "*.warez-download.example",   "reason": "Pirated software distribution",              "severity": "medium"},
+    {"pattern": "*.free-vpn.example",         "reason": "Unsanctioned VPN — policy bypass",           "severity": "low"}
+  ],
+  "employees": {
+    "192.168.10.20": "a.kapoor (Finance)",
+    "192.168.10.21": "j.rivera (Sales)",
+    "192.168.10.22": "s.okafor (Engineering)",
+    "192.168.10.23": "l.zhang (HR)",
+    "192.168.10.24": "m.dubois (Support)",
+    "192.168.10.25": "p.andersson (Marketing)",
+    "192.168.10.26": "r.gupta (Engineering)",
+    "192.168.10.27": "t.nakamura (Legal)"
+  }
+}

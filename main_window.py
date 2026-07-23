@@ -14,6 +14,7 @@ from screens.internal_page import InternalPage
 from screens.incident_page import IncidentPage
 from screens.osint_page import OsintPage
 from screens.history import HistoryScreen
+from screens.network_page import NetworkPage
 from db import DB
 
 
@@ -75,6 +76,8 @@ class MainWindow(QMainWindow):
         self._history = HistoryScreen(db=self._db)
         self._stack.addWidget(self._history)                                    # 8
         self._history.scan_selected.connect(self._on_history_open)
+        self._network = NetworkPage(db=self._db)
+        self._stack.addWidget(self._network)                                    # 9
 
         row_layout.addWidget(self._sidebar)
         row_layout.addWidget(self._stack, stretch=1)

@@ -126,7 +126,7 @@ class NetworkPage(QWidget):
         split.setSizes([820, 340])
         layout.addWidget(split, stretch=1)
 
-        self._status = QLabel("Idle — choose a mode and press Start.")
+        self._status = QLabel(self._idle_status_text())
         self._status.setStyleSheet(f"color: {T.TXT3}; font-size: {T.FS_SMALL}px;")
         layout.addWidget(self._status)
 
@@ -134,25 +134,25 @@ class NetworkPage(QWidget):
         row = QHBoxLayout()
         row.setSpacing(T.SP_SM)
 
-        self._mode = QComboBox()
-        self._mode.addItems(["Demo Feed", "Live Capture (root)"])
-        self._mode.setFixedWidth(170)
-        self._mode.currentIndexChanged.connect(self._on_mode_changed)
+        # Wireshark-style interface picker (live capture is the only mode).
+        self._iface = QComboBox()
+        self._iface.setMinimumWidth(200)
+        self._iface.addItem("Default (all interfaces)", None)
+        try:
+            from workers.network_monitor_worker import list_interfaces
+            for name in list_interfaces():
+                self._iface.addItem(name, name)
+        except Exception:
+            pass
 
-        self._iface = QLineEdit()
-        self._iface.setPlaceholderText("interface — blank = default (e.g. eth0)")
-        self._iface.setFixedWidth(240)
-        self._iface.setEnabled(False)  # only relevant in live mode
-
-        self._start_btn = PrimaryButton("▶  Start")
+        self._start_btn = PrimaryButton("▶  Start Capture")
         self._start_btn.setEnabled(self._db is not None)
         self._start_btn.clicked.connect(self._on_start_stop)
 
         self._clear_btn = SecondaryButton("Clear")
         self._clear_btn.clicked.connect(self._on_clear)
 
-        row.addWidget(QLabel("Mode:"))
-        row.addWidget(self._mode)
+        row.addWidget(QLabel("Interface:"))
         row.addWidget(self._iface)
         row.addStretch()
         row.addWidget(QLabel("Keep last:"))
@@ -348,8 +348,19 @@ class NetworkPage(QWidget):
         if events:
             self._table.scrollToBottom()
 
-    def _on_mode_changed(self, idx: int):
-        self._iface.setEnabled(idx == 1)  # interface only in live mode
+    @staticmethod
+    def _is_root() -> bool:
+        try:
+            import os
+            return hasattr(os, "geteuid") and os.geteuid() == 0
+        except Exception:
+            return False
+
+    def _idle_status_text(self) -> str:
+        if not self._is_root():
+            return ("Idle — live capture needs root. Launch SecureOps with sudo, "
+                    "then select an interface and press Start Capture.")
+        return "Idle — select an interface and press Start Capture."
 
     # ------------------------------------------------------------------ #
     # start / stop
@@ -367,10 +378,9 @@ class NetworkPage(QWidget):
         if self._ret_auto.isChecked():
             self._apply_retention()
 
-        demo = self._mode.currentIndex() == 0
-        iface = self._iface.text().strip() or None
+        iface = self._iface.currentData()  # None → default (all interfaces)
         self._worker = NetworkMonitorWorker(
-            db=self._db, blocklist=self._blocklist, iface=iface, demo=demo
+            db=self._db, blocklist=self._blocklist, iface=iface
         )
         self._worker.event_captured.connect(self._on_event)
         self._worker.alert_raised.connect(self._on_alert)
@@ -380,15 +390,15 @@ class NetworkPage(QWidget):
         self._worker.start()
         self._purge_timer.start()  # periodic auto-purge + indicator refresh
 
-        self._start_btn.setText("■  Stop")
-        self._mode.setEnabled(False)
-        self._status.setText("Starting…")
+        self._start_btn.setText("■  Stop Capture")
+        self._iface.setEnabled(False)
+        self._status.setText("Starting live capture…")
 
     def _on_finished(self):
         self._purge_timer.stop()
-        self._start_btn.setText("▶  Start")
+        self._start_btn.setText("▶  Start Capture")
         self._start_btn.setEnabled(True)
-        self._mode.setEnabled(True)
+        self._iface.setEnabled(True)
         self._update_storage_label()
 
     def _on_clear(self):

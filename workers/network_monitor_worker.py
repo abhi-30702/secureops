@@ -1,12 +1,9 @@
 """Live network-activity capture worker for the Network Activity Monitor page.
 
-Runs on a QThread (Rule #1 — the UI never blocks). Two modes:
-
-* **Live capture** — passively sniffs the wire with scapy, extracting the
-  destination host from DNS queries (primary signal), HTTP ``Host:`` headers and
-  TLS SNI (best-effort). Requires ``CAP_NET_RAW`` (run the app with ``sudo``).
-* **Demo feed** — synthesises a realistic stream of employee web activity so the
-  page is fully usable without root and testable headless.
+Runs on a QThread (Rule #1 — the UI never blocks). Passively sniffs the wire
+with scapy (Wireshark-style live capture), extracting the destination host from
+DNS queries (primary signal), HTTP ``Host:`` headers and TLS SNI (best-effort).
+Requires ``CAP_NET_RAW`` — run the app with ``sudo``.
 
 Every observed host is matched against the :class:`BlocklistEngine`, written to
 SQLite immediately (crash-safe audit trail), and streamed to the UI via signals.
@@ -15,7 +12,6 @@ or modifies traffic.
 """
 from __future__ import annotations
 
-import random
 import threading
 import time
 from datetime import datetime, timezone
@@ -28,13 +24,24 @@ from blocklist_engine import BlocklistEngine
 # BPF filter for the traffic we can parse a hostname out of.
 _CAPTURE_FILTER = "udp port 53 or tcp port 80 or tcp port 443"
 
-# Benign hosts for the demo feed (the "allowed" majority).
-_BENIGN_DOMAINS = [
-    "google.com", "www.github.com", "outlook.office365.com", "slack.com",
-    "atlassian.net", "zoom.us", "salesforce.com", "cloudflare.com",
-    "wikipedia.org", "stackoverflow.com", "linkedin.com", "docs.google.com",
-    "cdn.jsdelivr.net", "api.stripe.com", "aws.amazon.com", "notion.so",
-]
+
+def list_interfaces() -> list[str]:
+    """Available capture interfaces, for the UI picker (Wireshark-style).
+
+    Prefers scapy's interface list; falls back to ``/sys/class/net``. Never
+    raises — returns an empty list if nothing can be enumerated."""
+    try:
+        from scapy.all import get_if_list  # lazy: scapy import is heavy
+        ifaces = [i for i in get_if_list() if i]
+    except Exception:
+        try:
+            import os
+            ifaces = os.listdir("/sys/class/net")
+        except OSError:
+            ifaces = []
+    # keep it stable + put loopback last
+    ifaces = sorted(set(ifaces))
+    return sorted(ifaces, key=lambda n: (n in ("lo", "any"), n))
 
 
 def _now() -> str:
@@ -93,7 +100,7 @@ def _extract_http_host(payload: bytes) -> str | None:
 
 
 class NetworkMonitorWorker(QThread):
-    """Streams captured (or synthetic) network events + blocklist alerts."""
+    """Streams live-captured network events + blocklist alerts."""
 
     event_captured = pyqtSignal(dict)   # one network event (already persisted)
     alert_raised   = pyqtSignal(dict)   # a blocked event → red flag
@@ -105,14 +112,12 @@ class NetworkMonitorWorker(QThread):
         db: DB,
         blocklist: BlocklistEngine,
         iface: str | None = None,
-        demo: bool = False,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._db = db
         self._blocklist = blocklist
         self._iface = iface or None
-        self._demo = demo
         self._cancel = threading.Event()
 
     def stop(self) -> None:
@@ -121,10 +126,7 @@ class NetworkMonitorWorker(QThread):
     # -- QThread entry ------------------------------------------------- #
     def run(self) -> None:
         try:
-            if self._demo:
-                self._run_demo()
-            else:
-                self._run_live()
+            self._run_live()
         except Exception as exc:  # last-resort guard — never crash the app
             self.error_occurred.emit("network-monitor", str(exc))
             self.state_changed.emit("error", f"Capture error: {exc}")
@@ -184,7 +186,7 @@ class NetworkMonitorWorker(QThread):
             from scapy.packet import Raw
         except Exception as exc:
             self.state_changed.emit(
-                "error", f"scapy unavailable ({exc}). Use Demo Feed."
+                "error", f"scapy unavailable ({exc}). Install scapy to capture."
             )
             return
 
@@ -223,10 +225,11 @@ class NetworkMonitorWorker(QThread):
                 iface=self._iface,
             )
             sniffer.start()
-        except PermissionError:
+        except (PermissionError, OSError) as exc:
             self.state_changed.emit(
                 "error",
-                "Live capture needs root (CAP_NET_RAW). Launch with sudo or use Demo Feed.",
+                "Live capture needs root (CAP_NET_RAW) — launch SecureOps with sudo. "
+                f"({exc})",
             )
             return
         except Exception as exc:
@@ -244,28 +247,3 @@ class NetworkMonitorWorker(QThread):
         except Exception:
             pass
         self.state_changed.emit("stopped", "Live capture stopped")
-
-    # -- demo feed ----------------------------------------------------- #
-    def _run_demo(self) -> None:
-        self.state_changed.emit("running", "Demo feed — synthetic employee traffic")
-        employees = list(self._blocklist.employees.keys()) or [
-            f"192.168.10.{n}" for n in range(20, 28)
-        ]
-        blocked_domains = self._blocklist.blocked_domains or ["malware-c2.example"]
-        protocols = [(53, "DNS"), (443, "TLS"), (80, "HTTP")]
-        rnd = random.Random()
-
-        while not self._cancel.is_set():
-            src = rnd.choice(employees)
-            port, proto = rnd.choice(protocols)
-            # ~1 in 6 events hits the blocklist so red flags are visible but realistic.
-            if rnd.random() < 0.16:
-                base = rnd.choice(blocked_domains)
-                domain = base if rnd.random() < 0.5 else f"cdn.{base}"
-            else:
-                domain = rnd.choice(_BENIGN_DOMAINS)
-            self._handle(src, "203.0.113.10", domain, port, proto)
-            # Cancellable pacing so Stop is responsive.
-            self._cancel.wait(rnd.uniform(0.4, 1.1))
-
-        self.state_changed.emit("stopped", "Demo feed stopped")

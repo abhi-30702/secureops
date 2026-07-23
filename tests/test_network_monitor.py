@@ -249,19 +249,38 @@ def test_page_filters_hide_rows(qtbot):
     assert not page._table.isRowHidden(1)   # blocked row visible
 
 
-def test_demo_worker_emits(qtbot):
-    """The demo feed should persist and stream events without root."""
+def test_worker_handle_classifies_persists_emits(rules_file, qtbot):
+    """The core capture path: classify against the blocklist, persist, emit."""
     from workers.network_monitor_worker import NetworkMonitorWorker
     db = DB(":memory:")
-    worker = NetworkMonitorWorker(db=db, blocklist=BlocklistEngine(), demo=True)
-    captured = []
-    worker.event_captured.connect(lambda e: captured.append(e))
-    worker.start()
-    qtbot.waitUntil(lambda: len(captured) >= 3, timeout=5000)
-    worker.stop()
-    worker.wait(3000)
-    assert len(captured) >= 3
-    assert db.network_stats()["total"] >= 3
+    worker = NetworkMonitorWorker(db=db, blocklist=BlocklistEngine(rules_file))
+    events, alerts = [], []
+    worker.event_captured.connect(lambda e: events.append(e))
+    worker.alert_raised.connect(lambda a: alerts.append(a))
+
+    worker._handle("192.168.10.20", "1.1.1.1", "google.com", 53, "DNS")
+    worker._handle("192.168.10.20", "9.9.9.9", "malware-c2.example", 443, "TLS")
+
+    assert len(events) == 2
+    assert events[0]["status"] == "allowed"
+    assert events[1]["status"] == "blocked"
+    assert events[1]["employee_name"] == "a.kapoor"       # from rules_file map
+    assert len(alerts) == 1 and alerts[0]["severity"] == "critical"
+    assert db.network_stats()["blocked"] == 1
+
+
+def test_worker_handle_ignores_empty_domain(qtbot):
+    from workers.network_monitor_worker import NetworkMonitorWorker
+    db = DB(":memory:")
+    worker = NetworkMonitorWorker(db=db, blocklist=BlocklistEngine())
+    worker._handle("1.2.3.4", "5.6.7.8", "", 53, "DNS")
+    assert db.network_event_count() == 0
+
+
+def test_list_interfaces_returns_list():
+    from workers.network_monitor_worker import list_interfaces
+    ifaces = list_interfaces()
+    assert isinstance(ifaces, list)
 
 
 def test_sni_extractor_handles_garbage():

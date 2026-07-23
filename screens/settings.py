@@ -28,6 +28,9 @@ class SettingsScreen(QWidget):
         self._ollama_model_input: QLineEdit | None = None
         self._advisor_redact_cb: QCheckBox | None = None
         self._advisor_save_btn: QPushButton | None = None
+        self._start_ollama_btn: QPushButton | None = None
+        self._ollama_status_lbl: QLabel | None = None
+        self._ollama_launcher = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -208,6 +211,22 @@ class SettingsScreen(QWidget):
             self._ollama_model_input.setText(saved_model or "llama3")
         layout.addWidget(self._ollama_model_input)
 
+        # One-click: start the local Ollama server + load the model into memory,
+        # so the user never has to run `systemctl start ollama` by hand.
+        ollama_row = QHBoxLayout()
+        self._start_ollama_btn = QPushButton("Start Ollama")
+        self._start_ollama_btn.setFixedWidth(120)
+        self._start_ollama_btn.setToolTip(
+            "Start the local Ollama server and load the model for the AI Advisor"
+        )
+        self._start_ollama_btn.clicked.connect(self._on_start_ollama)
+        self._ollama_status_lbl = QLabel("")
+        self._ollama_status_lbl.setStyleSheet(f"color: {TXT2}; font-size: 11px;")
+        self._ollama_status_lbl.setWordWrap(True)
+        ollama_row.addWidget(self._start_ollama_btn)
+        ollama_row.addWidget(self._ollama_status_lbl, 1)
+        layout.addLayout(ollama_row)
+
         self._advisor_redact_cb = QCheckBox(
             "Redact company name, hostnames and IPs before sending"
         )
@@ -234,6 +253,8 @@ class SettingsScreen(QWidget):
                 self._api_key_input.setEnabled(False)
             if self._ollama_model_input:
                 self._ollama_model_input.setEnabled(False)
+            if self._start_ollama_btn:
+                self._start_ollama_btn.setEnabled(False)
             return
         is_ollama = (
             self._advisor_backend_combo is not None
@@ -243,6 +264,10 @@ class SettingsScreen(QWidget):
             self._api_key_input.setEnabled(not is_ollama)
         if self._ollama_model_input:
             self._ollama_model_input.setEnabled(is_ollama)
+        if self._start_ollama_btn:
+            # keep disabled while a launch is in flight
+            running = self._ollama_launcher is not None and self._ollama_launcher.isRunning()
+            self._start_ollama_btn.setEnabled(is_ollama and not running)
 
     def _on_advisor_toggled(self, checked: bool) -> None:
         if self._advisor_backend_combo:
@@ -276,6 +301,44 @@ class SettingsScreen(QWidget):
             self._db.set_setting(
                 "advisor_redact", "1" if self._advisor_redact_cb.isChecked() else "0"
             )
+
+    def _on_start_ollama(self) -> None:
+        if self._ollama_launcher is not None and self._ollama_launcher.isRunning():
+            return
+        model = ""
+        if self._ollama_model_input:
+            model = self._ollama_model_input.text().strip()
+        if not model and self._db:
+            model = self._db.get_setting("ollama_model") or ""
+        model = model or "llama3"
+
+        from advisor.ollama_launcher import OllamaLauncher
+        self._ollama_launcher = OllamaLauncher(model=model, parent=self)
+        self._ollama_launcher.status.connect(self._on_ollama_status)
+        self._ollama_launcher.finished.connect(self._on_ollama_finished)
+        if self._start_ollama_btn:
+            self._start_ollama_btn.setEnabled(False)
+        self._set_ollama_status("starting", "Starting…")
+        self._ollama_launcher.start()
+
+    def _on_ollama_status(self, state: str, message: str) -> None:
+        self._set_ollama_status(state, message)
+
+    def _on_ollama_finished(self) -> None:
+        self._ollama_launcher = None
+        # re-enable per current backend selection
+        enabled = self._advisor_enabled_cb.isChecked() if self._advisor_enabled_cb else False
+        self._sync_backend_inputs(enabled)
+
+    def _set_ollama_status(self, state: str, message: str) -> None:
+        if not self._ollama_status_lbl:
+            return
+        color = {
+            "running": SUCCESS,
+            "error": CRITICAL,
+        }.get(state, TXT2)
+        self._ollama_status_lbl.setText(message)
+        self._ollama_status_lbl.setStyleSheet(f"color: {color}; font-size: 11px;")
 
     def _build_subnet_section(self, layout: QVBoxLayout) -> None:
         subnet_label = QLabel("INTERNAL SUBNET RANGES")

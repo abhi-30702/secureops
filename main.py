@@ -1,17 +1,19 @@
 import sys
-from pathlib import Path
 from app import create_app
 from tool_checker import check_tools
 from main_window import MainWindow
 from db import DB
-
-_DB_PATH = Path.home() / ".secureops" / "secureops.db"
+from app_paths import resolve_data_dir, fix_ownership
 
 
 def build_window() -> MainWindow:
     tool_results = check_tools()
-    _DB_PATH.parent.mkdir(exist_ok=True)
-    db = DB(str(_DB_PATH))
+    data_dir = resolve_data_dir()
+    data_dir.mkdir(parents=True, exist_ok=True)
+    db = DB(str(data_dir / "secureops.db"))
+    # If we're root (sudo, for live capture), hand the files back to the user
+    # so a later normal launch shares the same database.
+    fix_ownership(data_dir)
     return MainWindow(tool_results, db=db)
 
 
